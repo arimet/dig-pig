@@ -1,0 +1,20 @@
+{
+  "id": 3,
+  "name": {
+    "fr": "La dégringolade",
+    "en": "Tumble"
+  },
+  "idea": {
+    "fr": "Une pierre posée sur une autre roule vers le côté libre.",
+    "en": "A stone resting on another one rolls toward a free side."
+  },
+  "grid": [
+    "#########",
+    "##Po .#.#",
+    "#  o..  #",
+    "#..#*   #",
+    "#X  # ..#",
+    "#########"
+  ],
+  "solution": "DDWLWWURURRDDUULLDDLD"
+}

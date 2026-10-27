@@ -1,0 +1,22 @@
+{
+  "id": 8,
+  "name": {
+    "fr": "Trois étages",
+    "en": "Three Floors"
+  },
+  "idea": {
+    "fr": "Trois truffes à trois hauteurs. Choisis bien laquelle tu vas chercher en premier.",
+    "en": "Three truffles at three heights. Choose carefully which one you go for first."
+  },
+  "grid": [
+    "##########",
+    "#..o *..##",
+    "# #o.### #",
+    "#  #. #oX#",
+    "# . Po#o #",
+    "#  #.... #",
+    "# ..#*#o*#",
+    "##########"
+  ],
+  "solution": "UDDRRWLDUULLLULUURLDDDRRRUUULRRLDDDRDRRRWLRDUUU"
+}

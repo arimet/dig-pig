@@ -1,0 +1,21 @@
+{
+  "id": 7,
+  "name": {
+    "fr": "Éboulis",
+    "en": "Scree"
+  },
+  "idea": {
+    "fr": "Cinq pierres autour de la seule truffe. Fais-les tomber là où elles ne gênent plus.",
+    "en": "Five stones around the only truffle. Drop them where they no longer get in the way."
+  },
+  "grid": [
+    "##########",
+    "#  .. o#.#",
+    "# # o..o #",
+    "##  # #.##",
+    "##.o.##.P#",
+    "# *oX. . #",
+    "##########"
+  ],
+  "solution": "LUDDRWULUULLWULLDDLDDUUWWDRRD"
+}

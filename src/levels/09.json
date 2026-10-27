@@ -1,0 +1,22 @@
+{
+  "id": 9,
+  "name": {
+    "fr": "La truffière",
+    "en": "The Truffle Bed"
+  },
+  "idea": {
+    "fr": "Quatre truffes. La plupart des chemins finissent dans une impasse.",
+    "en": "Four truffles. Most paths end in a dead end."
+  },
+  "grid": [
+    "##########",
+    "# .. ..  #",
+    "## .#.#.*#",
+    "# o #. .##",
+    "##o*#oP.o#",
+    "# #..*o .#",
+    "#  #.o*#X#",
+    "##########"
+  ],
+  "solution": "RUURULLLLLDDLRDDRDULRLWWRRURRDLLRDURRD"
+}

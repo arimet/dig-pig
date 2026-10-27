@@ -1,0 +1,21 @@
+{
+  "id": 5,
+  "name": {
+    "fr": "Le terrier",
+    "en": "The Burrow"
+  },
+  "idea": {
+    "fr": "Creuse dans le bon ordre : une pierre tombée ne remonte jamais.",
+    "en": "Dig in the right order: a fallen stone never goes back up."
+  },
+  "grid": [
+    "#########",
+    "##  ## ##",
+    "#.o.#P  #",
+    "# o.. # #",
+    "# #. #  #",
+    "#*# .X.##",
+    "#########"
+  ],
+  "solution": "DLLUDDWDRWUULULLDDDUUURRDDRDR"
+}

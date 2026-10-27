@@ -1,0 +1,20 @@
+{
+  "id": 2,
+  "name": {
+    "fr": "Pousse-caillou",
+    "en": "Pebble Pusher"
+  },
+  "idea": {
+    "fr": "Tu peux pousser une pierre sur le côté si la case derrière elle est vide.",
+    "en": "You can push a stone sideways when the tile behind it is empty."
+  },
+  "grid": [
+    "########",
+    "#   o  #",
+    "# *#.oX#",
+    "# . ## #",
+    "##P  ###",
+    "########"
+  ],
+  "solution": "UUURRDULWWRRRD"
+}

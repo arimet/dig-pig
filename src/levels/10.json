@@ -1,0 +1,22 @@
+{
+  "id": 10,
+  "name": {
+    "fr": "Le grand éboulement",
+    "en": "The Rockslide"
+  },
+  "idea": {
+    "fr": "Huit pierres, une truffe, et presque aucune erreur permise.",
+    "en": "Eight stones, one truffle, and almost no room for mistakes."
+  },
+  "grid": [
+    "##########",
+    "# ##.#o# #",
+    "#.  .o.###",
+    "#.oPo..#o#",
+    "# o.o.o .#",
+    "# .##..# #",
+    "#..* #.#X#",
+    "##########"
+  ],
+  "solution": "ULLDDDWDRRLULWWURRLWWURRRRWLLRDDRLWURRRDD"
+}

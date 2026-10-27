@@ -5,15 +5,16 @@
     "en": "First Snuffle"
   },
   "idea": {
-    "fr": "Creuse, mange les truffes, puis sors par la porte.",
-    "en": "Dig, eat the truffles, then leave by the door."
+    "fr": "Une pierre tombe dès que tu creuses sous elle. Laisse-la finir sa chute avant de passer.",
+    "en": "A stone falls as soon as you dig under it. Let it land before you walk past."
   },
   "grid": [
-    "#########",
-    "#P..o..*#",
-    "#.#..#..#",
-    "#*. o. X#",
-    "#########"
+    "########",
+    "# o X  #",
+    "#*... .#",
+    "## #.#.#",
+    "# .#P# #",
+    "########"
   ],
-  "solution": "DDRRURLURRRDURLDDR"
+  "solution": "UULLLWWURRR"
 }

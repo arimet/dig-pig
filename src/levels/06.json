@@ -1,0 +1,21 @@
+{
+  "id": 6,
+  "name": {
+    "fr": "Sous la souche",
+    "en": "Under the Stump"
+  },
+  "idea": {
+    "fr": "La porte est tout près. La truffe est à l’autre bout.",
+    "en": "The door is close. The truffle is at the other end."
+  },
+  "grid": [
+    "#########",
+    "#P...##.#",
+    "#. #. .##",
+    "####. o.#",
+    "#   o .##",
+    "#*o.##.X#",
+    "#########"
+  ],
+  "solution": "RRRDRDDLLDURWWLLLDURRRRRDR"
+}
