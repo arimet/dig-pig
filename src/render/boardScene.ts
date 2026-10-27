@@ -30,6 +30,7 @@ const KEEP = new Set<object>([
   ...Object.values(shared.exit), ...Object.values(MATERIALS),
 ])
 
+const STONE_RADIUS = 0.44 // the stone model is 21 voxels tall at 24 per tile
 const CRUMBS = 12
 const CRUMB_LIFE = 0.7
 
@@ -133,11 +134,16 @@ export class BoardScene {
     let p = this.pieces.get(id)
     if (p) return p
     p = new THREE.Group()
-    const body = new THREE.Mesh(kind === STONE ? shared.stone[id % 3] : shared.truffle, kind === STONE ? MATERIALS.lit : MATERIALS.glossy)
-    body.castShadow = body.receiveShadow = this.quality === 'high'
-    body.position.y = -0.5
-    if (kind === STONE) body.rotation.y = (id % 4) * Math.PI / 2
+    const mesh = new THREE.Mesh(kind === STONE ? shared.stone[id % 3] : shared.truffle, kind === STONE ? MATERIALS.lit : MATERIALS.glossy)
+    mesh.castShadow = mesh.receiveShadow = this.quality === 'high'
+    // the body pivots at the stone's centre, so it can roll along the floor
+    const body = new THREE.Group()
+    body.position.y = -0.5 + STONE_RADIUS
+    mesh.position.y = -STONE_RADIUS
+    if (kind === STONE) mesh.rotation.y = (id % 4) * Math.PI / 2
+    body.add(mesh)
     p.add(body)
+    p.userData.spin = id * 1.3
     if (kind === TRUFFLE) {
       const s = new THREE.Mesh(shared.sparkle, MATERIALS.glow)
       s.position.set(0.18, 0.02, 0.3)
@@ -169,9 +175,8 @@ export class BoardScene {
       p.scale.setScalar(1)
       const start = from.get(id) ?? cell
       p.position.lerpVectors(pos(start), pos(cell), a)
-      // a stone rolls as it moves sideways
-      const dx = (cell % level.width) - (start % level.width)
-      if (p.userData.kind === STONE && dx) p.children[0].rotation.z = -dx * a * Math.PI / 2
+      // a stone rolls without slipping: its turn follows from how far along the row it is
+      if (p.userData.kind === STONE) p.children[0].rotation.z = p.userData.spin - p.position.x / STONE_RADIUS
       const sp = p.userData.sparkle as THREE.Mesh | undefined
       if (sp) sp.scale.setScalar(Math.max(0, Math.sin(clock * 2.2 + id * 1.7)) ** 3)
     }
