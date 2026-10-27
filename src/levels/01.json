@@ -1,0 +1,19 @@
+{
+  "id": 1,
+  "name": {
+    "fr": "Premier coup de groin",
+    "en": "First Snuffle"
+  },
+  "idea": {
+    "fr": "Creuse, mange les truffes, puis sors par la porte.",
+    "en": "Dig, eat the truffles, then leave by the door."
+  },
+  "grid": [
+    "#########",
+    "#P..o..*#",
+    "#.#..#..#",
+    "#*. o. X#",
+    "#########"
+  ],
+  "solution": "DDRRURLURRRDURLDDR"
+}
