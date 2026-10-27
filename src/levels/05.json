@@ -5,17 +5,17 @@
     "en": "The Burrow"
   },
   "idea": {
-    "fr": "Creuse dans le bon ordre : une pierre tombée ne remonte jamais.",
-    "en": "Dig in the right order: a fallen stone never goes back up."
+    "fr": "Deux truffes. Une pierre tombée ne remonte jamais.",
+    "en": "Two truffles. A fallen stone never goes back up."
   },
   "grid": [
     "#########",
-    "##  ## ##",
-    "#.o.#P  #",
-    "# o.. # #",
-    "# #. #  #",
-    "#*# .X.##",
+    "#Po  .  #",
+    "#.. ###*#",
+    "#. . ..##",
+    "##* X. ##",
+    "# #  #  #",
     "#########"
   ],
-  "solution": "DLLUDDWDRWUULULLDDDUUURRDDRDR"
+  "solution": "DRWLWRRRRRRDLLLLWDWWLWWRR"
 }

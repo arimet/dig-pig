@@ -21,8 +21,8 @@ describe('step', () => {
   })
 
   it('a resting stone sits safely on the pig, a falling one crushes it', () => {
-    // dig up under the stone: it rests on the pig
-    expect(after(['#####', '#o  #', '#.  #', '#P X#', '#####'], 'U').s.status).toBe('playing')
+    // dig sideways under the stone: it rests on the pig
+    expect(after(['#####', '#.o.#', '#P.X#', '#####'], 'R').s.status).toBe('playing')
     // walk out from under a stone sideways: it falls into the gap, not on the pig
     expect(after(['#####', '#o  #', '#P X#', '#####'], 'R').s.status).toBe('playing')
     // step under a stone that is already falling
@@ -50,6 +50,22 @@ describe('step', () => {
   it('pushes a resting stone sideways into empty space only', () => {
     expect(after(['######', '#Po  #', '#..X.#', '######'], 'R').rows[1]).toBe('# Po #')
     expect(after(['######', '#Po. #', '#..X.#', '######'], 'R').rows[1]).toBe('#Po. #')
+  })
+
+  it('the pig drops when nothing holds it up, one tile per turn, and cannot act in mid-air', () => {
+    const level = lv(['######', '#P   #', '##   #', '##   #', '##..X#', '######'])
+    let s = step(level, createState(level), 'R').state // walks off the ledge
+    expect(s.pig).toBe(8)
+    s = step(level, s, 'R').state // falls instead of walking on
+    expect(s.pig).toBe(14)
+    s = step(level, s, 'W').state
+    expect(s.pig).toBe(20)
+    expect(step(level, s, 'W').state.pig).toBe(20) // landed on the humus
+  })
+
+  it('hops onto a one-tile ledge when there is room above, never climbs straight up', () => {
+    expect(after(['######', '#    #', '#P# X#', '######'], 'R').s.pig).toBe(8)
+    expect(after(['######', '##   #', '#P# X#', '######'], 'R').s.pig).toBe(13) // no headroom above the pig
   })
 
   it('a truffle falling on the pig is eaten', () => {

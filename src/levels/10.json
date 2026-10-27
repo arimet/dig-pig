@@ -5,18 +5,18 @@
     "en": "The Rockslide"
   },
   "idea": {
-    "fr": "Huit pierres, une truffe, et presque aucune erreur permise.",
-    "en": "Eight stones, one truffle, and almost no room for mistakes."
+    "fr": "Trois truffes, trois pierres, et presque aucune erreur permise.",
+    "en": "Three truffles, three stones, and almost no room for mistakes."
   },
   "grid": [
     "##########",
-    "# ##.#o# #",
-    "#.  .o.###",
-    "#.oPo..#o#",
-    "# o.o.o .#",
-    "# .##..# #",
-    "#..* #.#X#",
+    "#*.. #.*##",
+    "#. #P o.##",
+    "##.*#..###",
+    "# ..o...##",
+    "#  .o.#.X#",
+    "#..#.### #",
     "##########"
   ],
-  "solution": "ULLDDDWDRRLULWWURRLWWURRRRWLLRDDRLWURRRDD"
+  "solution": "LLWWLRLRRRWRDRLWRRLRLLWLLLWDRDLWRLWWRRRRRDR"
 }

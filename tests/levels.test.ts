@@ -4,7 +4,7 @@ import { createState, play, step } from '../src/sim/sim'
 
 describe('shipped levels', () => {
   it.each(LEVELS.map(l => [l.id, l] as const))('level %i opens at rest and its solution wins', (_, level) => {
-    expect(step(level, createState(level), 'W').events.filter(e => e.type === 'fall' || e.type === 'roll')).toEqual([])
+    expect(step(level, createState(level), 'W').events.filter(e => ['fall', 'roll', 'drop'].includes(e.type))).toEqual([])
     expect(play(level, level.solution ?? '').status).toBe('won')
   })
 

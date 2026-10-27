@@ -16,8 +16,8 @@ describe('analyse', () => {
   })
 
   it('counts traps, and a straight walk to each truffle does not win', () => {
-    // found by scripts/gen.ts
-    const level = lv(["#########", "#P#*  ..#", "#o.oo.oo#", "#o.*oo. #", "#  * .. #", "#*. *#.X#", "#########"])
+    // world 1, level 10, found by scripts/gen.ts
+    const level = lv(["##########", "#*.. #.*##", "#. #P o.##", "##.*#..###", "# ..o...##", "#  .o.#.X#", "#..#.### #", "##########"])
     const a = analyse(level)
     expect(play(level, a.solution!).status).toBe('won')
     expect(a.traps).toBeGreaterThan(5)

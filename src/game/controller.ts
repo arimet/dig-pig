@@ -1,4 +1,4 @@
-import { createState, stateKey, step } from '../sim/sim'
+import { createState, stateKey, step, supported } from '../sim/sim'
 import type { GameEvent, Level, Move, State } from '../sim/types'
 
 export type Phase = 'playing' | 'dying' | 'won'
@@ -69,8 +69,11 @@ export class GameController {
     if (this.phase === 'won' || this.history.length < 2) return false
     this.queue = []
     this.autoplay = []
-    this.undone = this.history.pop()!
-    this.turnEvents.pop()
+    // a fall is not a choice: take back the turns spent in mid-air along with the one that led there
+    do {
+      this.undone = this.history.pop()!
+      this.turnEvents.pop()
+    } while (this.history.length > 1 && !supported(this.level, this.state))
     this.undos++
     this.t = 0
     this.enter('playing')
@@ -123,8 +126,14 @@ export class GameController {
       this.hooks.onWin?.()
     }
     if (this.t >= 1 && this.phase === 'playing') {
-      const move = this.autoplay.shift() ?? this.queue.shift()
-      if (move) this.take(move)
+      // in mid-air the pig falls on its own, turn after turn; keys wait until it lands
+      if (!supported(this.level, this.state)) {
+        if (this.autoplay[0] === 'W') this.autoplay.shift()
+        this.take('W')
+      } else {
+        const move = this.autoplay.shift() ?? this.queue.shift()
+        if (move) this.take(move)
+      }
     }
     const n = this.history.length
     return this.frame(this.history[n - 2] ?? this.history[0], this.history[n - 1], n < 2 ? 1 : this.t)

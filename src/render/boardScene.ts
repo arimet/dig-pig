@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import type { Frame } from '../game/controller'
 import { exitOpen } from '../sim/sim'
-import { BEDROCK, EXIT, HUMUS, STONE, TRUFFLE } from '../sim/types'
+import { BEDROCK, EMPTY, EXIT, HUMUS, STONE, TRUFFLE } from '../sim/types'
 import type { GameEvent, Level, State } from '../sim/types'
 import { createDiorama } from './diorama'
 import { disposeTree } from './dispose'
@@ -9,7 +9,7 @@ import { forestDecor } from './forest'
 import {
   MATERIALS, bedrockGeometry, cavityGeometry, createPig, exitGeometries, humusGeometry, sparkleGeometry, stoneGeometry, truffleGeometry,
 } from './models'
-import { type PigAction, pigProgress, posePig, soilLeft, truffleLeft } from './pigAnim'
+import { type PigAction, pigPath, posePig, soilLeft, truffleLeft } from './pigAnim'
 import { PALETTE } from './palette'
 import { detectQuality } from './quality'
 import { createStage } from './stage'
@@ -35,15 +35,15 @@ const CRUMBS = 12
 const CRUMB_LIFE = 0.7
 
 // What the pig is doing during a turn, from what the turn did.
-function actionOf(events: GameEvent[], from: number, to: number, width: number): PigAction {
+function actionOf(events: GameEvent[], from: State, to: State, width: number): PigAction {
   const types = new Set(events.map(e => e.type))
-  if (types.has('dig')) return 'dig'
+  const dy = Math.floor(to.pig / width) - Math.floor(from.pig / width)
+  if (types.has('drop')) return to.cells[to.pig + width] === EMPTY ? 'fall' : 'land'
+  if (types.has('step')) return 'hop'
+  if (types.has('dig')) return dy > 0 ? 'digDown' : 'dig'
   if (types.has('push')) return 'push'
-  if (types.has('eat') && from !== to) return 'eat'
-  const dy = Math.floor(to / width) - Math.floor(from / width)
-  if (dy < 0) return 'climb'
-  if (dy > 0) return 'drop'
-  return from === to ? 'idle' : 'walk'
+  if (types.has('eat') && from.pig !== to.pig) return 'eat'
+  return from.pig === to.pig ? 'idle' : 'walk'
 }
 
 // The level as a slice of forest soil seen from the front: gravity points down the screen.
@@ -181,7 +181,7 @@ export class BoardScene {
       if (sp) sp.scale.setScalar(Math.max(0, Math.sin(clock * 2.2 + id * 1.7)) ** 3)
     }
     const p0 = f.from.pig, p1 = f.to.pig
-    const action = f.phase === 'dying' ? 'idle' : actionOf(f.events, p0, p1, level.width)
+    const action = f.phase === 'dying' ? 'idle' : actionOf(f.events, f.from, f.to, level.width)
     // eaten this turn: the truffle shrinks into the snout as it reaches it
     for (const [id, cell] of from) {
       if (to.has(id)) continue
@@ -221,13 +221,14 @@ export class BoardScene {
     const targetYaw = this.facing > 0 ? 0 : Math.PI
     this.yaw += (targetYaw - this.yaw) * Math.min(1, dt * 22)
     this.pig.rotation.y = this.yaw
-    this.pig.position.lerpVectors(pos(p0), pos(p1), pigProgress(action, a))
+    const path = pigPath(action, a), q0 = pos(p0), q1 = pos(p1)
+    this.pig.position.set(q0.x + (q1.x - q0.x) * path.x, q0.y + (q1.y - q0.y) * path.y, 0)
     this.pig.position.y -= 0.5
     this.pig.position.z = 0.05
     posePig(this.pig, action, a, clock)
     if (f.to !== this.lastTo) {
       this.lastTo = f.to
-      if (action === 'dig' && f.alpha < 1) this.burst(pos(p0), pos(p1), clock)
+      if ((action === 'dig' || action === 'digDown') && f.alpha < 1) this.burst(pos(p0), pos(p1), clock)
     }
     this.renderCrumbs(clock)
     const crushed = f.to.status === 'dead' ? Math.min(1, f.dyingT * 6) : 0
@@ -262,7 +263,7 @@ export class BoardScene {
       const t = t0 - (i % 3) * 0.09 // one handful per jab
       const back = -Math.sign(this.crumbDir.x || this.crumbDir.y)
       const vx = this.crumbDir.x ? back * (0.15 + 0.45 * rnd(i, 1)) : (rnd(i, 1) - 0.5) * 0.8
-      const vy = 0.3 + 0.7 * rnd(i, 2)
+      const vy = this.crumbDir.x ? 0.3 + 0.7 * rnd(i, 2) : 0.15 + 0.3 * rnd(i, 2) // digging down, crumbs barely leave the hole
       const side = i % 2 ? 1 : -1 // in front of the pig or behind it
       const tt = Math.max(0, t)
       v.set(this.crumbFrom.x + vx * tt, this.crumbFrom.y + (rnd(i, 3) - 0.5) * 0.25 + vy * tt - 4.9 * tt * tt, side * (0.28 + 0.12 * rnd(i, 4)))

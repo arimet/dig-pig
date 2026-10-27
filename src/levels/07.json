@@ -5,17 +5,17 @@
     "en": "Scree"
   },
   "idea": {
-    "fr": "Cinq pierres autour de la seule truffe. Fais-les tomber là où elles ne gênent plus.",
-    "en": "Five stones around the only truffle. Drop them where they no longer get in the way."
+    "fr": "Trois truffes sous quatre pierres. Fais tomber les pierres là où elles ne gênent plus.",
+    "en": "Three truffles under four stones. Drop the stones where they no longer get in the way."
   },
   "grid": [
     "##########",
-    "#  .. o#.#",
-    "# # o..o #",
-    "##  # #.##",
-    "##.o.##.P#",
-    "# *oX. . #",
+    "#  #o .#o#",
+    "# .P**# .#",
+    "# X.#.##.#",
+    "# o  #o###",
+    "##. . * .#",
     "##########"
   ],
-  "solution": "LUDDRWULUULLWULLDDLDDUUWWDRRD"
+  "solution": "LRRRWLLLRDWWWRRRRWLLLLL"
 }

@@ -5,17 +5,17 @@
     "en": "Roots"
   },
   "idea": {
-    "fr": "Une seule truffe, mais chaque pierre que tu fais tomber peut te fermer le passage.",
-    "en": "Just one truffle, but every stone you drop can close your way."
+    "fr": "Une truffe, une pierre. Pour remonter, le cochon n’a que des marches d’une case.",
+    "en": "One truffle, one stone. To get back up, the pig only has one-tile steps."
   },
   "grid": [
     "#########",
-    "## o. .*#",
-    "# #.  .##",
-    "#  .##o##",
-    "#.P  ..X#",
-    "# #. #. #",
+    "#.Po ..##",
+    "# ...#  #",
+    "###. # .#",
+    "#  ###.*#",
+    "# # X. ##",
     "#########"
   ],
-  "solution": "URUDDRRLLUURRURRLLDLLDDRRRR"
+  "solution": "DRLWRRRRWWRDLWLL"
 }

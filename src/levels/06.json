@@ -5,17 +5,17 @@
     "en": "Under the Stump"
   },
   "idea": {
-    "fr": "La porte est tout près. La truffe est à l’autre bout.",
-    "en": "The door is close. The truffle is at the other end."
+    "fr": "Une seule truffe, et la porte est à l’autre bout.",
+    "en": "Just one truffle, and the door is at the other end."
   },
   "grid": [
     "#########",
-    "#P...##.#",
-    "#. #. .##",
-    "####. o.#",
-    "#   o .##",
-    "#*o.##.X#",
+    "#P.#  . #",
+    "#.##o# .#",
+    "#. ...o##",
+    "##.....##",
+    "#*.  # X#",
     "#########"
   ],
-  "solution": "RRRDRDDLLDURWWLLLDURRRRRDR"
+  "solution": "DDRRRRWLDWWRLWLLLRRRRRWR"
 }

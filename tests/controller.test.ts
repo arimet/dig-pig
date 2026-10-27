@@ -17,7 +17,7 @@ describe('GameController', () => {
 
   it('a bump into bedrock while nothing falls is not a turn', () => {
     const g = new GameController(lv(['#####', '#P*X#', '#####']))
-    g.request('U')
+    g.request('D')
     run(g, TURN_SECONDS * 2)
     expect(g.turns).toBe(0)
   })

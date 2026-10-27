@@ -1,4 +1,4 @@
-import { DELTA, MOVES, createState, exitOpen, stateKey, step } from './sim'
+import { DELTA, createState, exitOpen, stateKey, step, supported } from './sim'
 import { ALL_RULES, EMPTY, EXIT, HUMUS, PIG, STONE, TRUFFLE } from './types'
 import type { Level, Move, Rules, State } from './types'
 
@@ -14,27 +14,36 @@ export interface Analysis {
 
 const sameBoard = (a: State, b: State) => a.cells.every((c, i) => c === b.cells[i]) && a.falling.every((f, i) => f === b.falling[i])
 
-// Nothing is falling and the pig holds nothing up: it may walk anywhere in its open pocket
-// without changing the forest, so the pocket rather than its exact cell is what matters.
+// Nothing is falling and the pig stands on something without holding anything up: it may wander
+// without changing the forest, so only the actions at the end of a wander need exploring.
 function freeAtRest(level: Level, s: State, rules: Rules): boolean {
-  if (s.falling.some(f => f)) return false
+  if (s.falling.some(f => f) || !supported(level, s)) return false
   const lifted = { ...s, cells: s.cells.slice() }
   lifted.cells[s.pig] = EMPTY
   return sameBoard(lifted, step(level, lifted, 'W', rules).state)
 }
 
-// The open cells the pig can walk to, with the moves to reach each one.
-function pocket(level: Level, s: State): Map<number, string> {
+// Every cell the pig can reach without changing anything (walking, hopping onto ledges, dropping
+// off them), with the moves that take it there. Drops are one-way, so this is not symmetric.
+function wander(level: Level, s: State, rules: Rules): Map<number, string> {
   const w = level.width
+  const cells = s.cells.slice()
+  cells[s.pig] = EMPTY
   const paths = new Map([[s.pig, '']])
   const queue = [s.pig]
   for (let q = 0; q < queue.length; q++) {
-    const i = queue[q]
-    for (const m of ['U', 'D', 'L', 'R'] as Move[]) {
-      const j = i + DELTA[m][1] * w + DELTA[m][0]
-      if (s.cells[j] !== EMPTY || paths.has(j)) continue
-      paths.set(j, paths.get(i)! + m)
-      queue.push(j)
+    const c = queue[q]
+    for (const m of ['L', 'R'] as Move[]) {
+      const dx = DELTA[m][0], n = c + dx
+      let to = -1, path = paths.get(c)! + m
+      if (cells[n] === EMPTY) {
+        to = n
+        while (cells[to + w] === EMPTY) { to += w; path += 'W' }
+      } else if (cells[n] !== HUMUS && cells[n] !== TRUFFLE && !(cells[n] === STONE && rules.push && cells[n + dx] === EMPTY) &&
+        cells[c - w] === EMPTY && cells[n - w] === EMPTY) to = n - w // a ledge
+      if (to < 0 || paths.has(to)) continue
+      paths.set(to, path)
+      queue.push(to)
     }
   }
   return paths
@@ -47,29 +56,25 @@ function keyOf(level: Level, s: State, rules: Rules): { key: string; free: boole
   cells[s.pig] = EMPTY
   let k = ''
   for (const c of cells) k += String.fromCharCode(48 + c)
-  return { key: k + '@' + Math.min(...pocket(level, s).keys()), free: true }
+  return { key: k + '@' + s.pig, free: true }
 }
+
+const CHANGES = new Set(['dig', 'eat', 'push', 'win', 'fall', 'roll', 'crush'])
 
 // The states one decision away, with the moves that lead there.
 function* successors(level: Level, s: State, free: boolean, rules: Rules): Generator<[State, string]> {
   if (!free) {
-    // waiting first, so a bump into a wall never stands in for it in a solution
-    for (const m of ['W', ...MOVES.slice(0, 4)] as Move[]) yield [step(level, s, m, rules).state, m]
+    // in mid-air only waiting means anything; otherwise waiting first, so a bump never stands in for it
+    for (const m of (supported(level, s) ? ['W', 'L', 'R', 'D'] : ['W']) as Move[]) yield [step(level, s, m, rules).state, m]
     return
   }
-  const w = level.width
-  const open = exitOpen(level, s)
-  for (const [t, path] of pocket(level, s)) {
-    for (const m of ['U', 'D', 'L', 'R'] as Move[]) {
-      const [dx, dy] = DELTA[m]
-      const c = s.cells[t + dy * w + dx]
-      const useful = c === HUMUS || c === TRUFFLE || (c === EXIT && open) ||
-        (c === STONE && dy === 0 && rules.push && s.cells[t + 2 * dx] === EMPTY)
-      if (!useful) continue
-      const at: State = { ...s, cells: s.cells.slice(), ids: s.ids.slice() }
-      at.cells[s.pig] = EMPTY; at.ids[t] = s.ids[s.pig]; if (t !== s.pig) at.ids[s.pig] = 0
-      at.cells[t] = PIG; at.pig = t
-      yield [step(level, at, m, rules).state, path + m]
+  for (const [t, path] of wander(level, s, rules)) {
+    const at: State = { ...s, cells: s.cells.slice(), ids: s.ids.slice() }
+    at.cells[s.pig] = EMPTY; at.ids[t] = s.ids[s.pig]; if (t !== s.pig) at.ids[s.pig] = 0
+    at.cells[t] = PIG; at.pig = t
+    for (const m of ['L', 'R', 'D'] as Move[]) {
+      const r = step(level, at, m, rules)
+      if (r.events.some(e => CHANGES.has(e.type))) yield [r.state, path + m]
     }
   }
 }
@@ -134,26 +139,32 @@ export function analyse(level: Level, opts: { budget?: number; rules?: Rules } =
   return { solvable: solution !== null, solution, actions, explored: states.length, complete, deadEnds, traps }
 }
 
-// Shortest-path distances for the pig through what it can walk into right now, from `target`.
-function distances(level: Level, s: State, target: number): Int32Array {
+// The first move of a shortest route from the pig to `target`, through what it can walk, dig or eat,
+// hopping onto ledges, as if it never fell; null when there is none.
+function firstMove(level: Level, s: State, target: number): Move | null {
   const w = level.width
-  const dist = new Int32Array(s.cells.length).fill(-1)
-  dist[target] = 0
-  const queue = [target]
+  const open = exitOpen(level, s)
+  const passable = (c: number, j: number) => c === EMPTY || c === HUMUS || c === TRUFFLE || (c === EXIT && open) || j === s.pig
+  const first = new Map<number, Move>([[s.pig, 'W']])
+  const queue = [s.pig]
   for (let q = 0; q < queue.length; q++) {
     const i = queue[q]
-    for (const d of [-1, 1, -w, w]) {
-      const j = i + d
-      const c = s.cells[j]
-      if (dist[j] >= 0 || !(c === EMPTY || c === HUMUS || c === TRUFFLE || j === s.pig)) continue
-      dist[j] = dist[i] + 1
+    if (i === target) return first.get(i)!
+    const go = (j: number, m: Move) => {
+      if (first.has(j)) return
+      first.set(j, i === s.pig ? m : first.get(i)!)
       queue.push(j)
     }
+    for (const m of ['L', 'R', 'D'] as Move[]) {
+      const j = i + DELTA[m][1] * w + DELTA[m][0]
+      if (passable(s.cells[j], j)) go(j, m)
+      else if (m !== 'D' && s.cells[i - w] === EMPTY && passable(s.cells[j - w], j - w)) go(j - w, m)
+    }
   }
-  return dist
+  return null
 }
 
-// A player who sees the answer at once: walks the shortest way to a truffle, in a chosen order,
+// A player who sees the answer at once: heads the shortest way to a truffle, in a chosen order,
 // then to the exit, never pushes or waits on purpose, only refuses a step that kills on the spot.
 function naiveRun(level: Level, order: number[]): boolean {
   let s = createState(level)
@@ -162,18 +173,11 @@ function naiveRun(level: Level, order: number[]): boolean {
   for (let turn = 0; turn < 400 && s.status === 'playing'; turn++) {
     const targets = exitOpen(level, s) ? [exit] : order.map(id => s.ids.indexOf(id)).filter(i => i >= 0 && s.cells[i] === TRUFFLE)
     let move: Move = 'W'
-    for (const t of targets) {
-      const dist = distances(level, s, t)
-      if (dist[s.pig] < 0) continue
-      const steps = (['U', 'D', 'L', 'R'] as Move[]).filter(m => {
-        const [dx, dy] = DELTA[m]
-        const j = s.pig + dy * level.width + dx
-        return (dist[j] >= 0 && dist[j] < dist[s.pig]) || (j === exit && t === exit)
-      })
-      const safe = steps.find(m => step(level, s, m).state.status !== 'dead')
-      if (safe) { move = safe; break }
+    if (supported(level, s)) for (const t of targets) {
+      const m = firstMove(level, s, t)
+      if (m && m !== 'W' && step(level, s, m).state.status !== 'dead') { move = m; break }
     }
-    if (move === 'W' && ++stuck > 3) return false
+    if (move === 'W' && supported(level, s) && ++stuck > 3) return false
     if (move !== 'W') stuck = 0
     s = step(level, s, move).state
   }

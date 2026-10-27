@@ -98,8 +98,8 @@ const screens = createScreens(ui, {
 })
 
 const KEYS: Record<string, Move> = {
-  ArrowUp: 'U', ArrowDown: 'D', ArrowLeft: 'L', ArrowRight: 'R', ' ': 'W',
-  w: 'U', z: 'U', a: 'L', q: 'L', s: 'D', d: 'R', // WASD and ZQSD
+  ArrowDown: 'D', ArrowLeft: 'L', ArrowRight: 'R', ' ': 'W',
+  a: 'L', q: 'L', s: 'D', d: 'R', // WASD and ZQSD; there is no up: pigs don't climb
 }
 addEventListener('keydown', e => {
   if (!playing || e.metaKey || e.ctrlKey || e.altKey) return
@@ -117,7 +117,8 @@ canvas.addEventListener('pointerup', e => {
   const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y
   swipe = null
   if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) return
-  move(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'R' : 'L') : (dy > 0 ? 'D' : 'U'))
+  if (Math.abs(dx) > Math.abs(dy)) move(dx > 0 ? 'R' : 'L')
+  else if (dy > 0) move('D')
 })
 
 addEventListener('pointerdown', unlockAudio, { capture: true })

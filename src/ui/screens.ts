@@ -113,10 +113,10 @@ export function createScreens(root: HTMLElement, on: ScreenHandlers) {
   const extra = h('div', 'hud-extra')
   extra.append(menu)
   top.append(info, tools, extra)
-  // touch pad: the four moves around a wait button
+  // touch pad: left, right and down around a wait button
   const pad = h('footer', 'pad')
-  const padButtons = (['U', 'L', 'W', 'R', 'D'] as Move[]).map(m => {
-    const b = button('', `small pad-${m}`, () => on.onMove(m), m === 'W' ? icon('wait') : icon('arrow', `dir-${({ U: 'N', D: 'S', L: 'W', R: 'E' } as const)[m as 'U']}`))
+  const padButtons = (['L', 'W', 'R', 'D'] as Move[]).map(m => {
+    const b = button('', `small pad-${m}`, () => on.onMove(m), m === 'W' ? icon('wait') : icon('arrow', `dir-${({ D: 'S', L: 'W', R: 'E' } as const)[m as 'D']}`))
     b.dataset.move = m
     return b
   })
@@ -183,7 +183,7 @@ export function createScreens(root: HTMLElement, on: ScreenHandlers) {
     label(menu, s.menu)
     for (const b of padButtons) {
       const m = b.dataset.move as Move
-      label(b, m === 'W' ? s.wait : s.move(m as 'U'), m === 'W' ? s.waitKey : s.move(m as 'U'))
+      label(b, m === 'W' ? s.wait : s.move(m as 'D'), m === 'W' ? s.waitKey : s.move(m as 'D'))
     }
     label(vNext, s.nextLevel)
     label(vMenu, s.menu)

@@ -1,7 +1,8 @@
 import type { Text } from '../ui/i18n'
 
-// U/D/L/R move the pig one tile; W waits a turn while the forest keeps falling.
-export type Move = 'U' | 'D' | 'L' | 'R' | 'W'
+// L/R walk (or dig, eat, push, hop onto a one-tile ledge), D digs down; the pig cannot climb
+// straight up. W waits a turn while the forest keeps falling.
+export type Move = 'D' | 'L' | 'R' | 'W'
 
 // Cell codes, one byte per tile.
 export const EMPTY = 0
@@ -29,13 +30,13 @@ export interface State {
   turn: number
   cells: Uint8Array
   ids: Int32Array // identity of the thing in each cell, so the renderer can follow it between turns
-  falling: Uint8Array // 1 where a stone or truffle moved down or rolled this turn
+  falling: Uint8Array // 1 where a stone, a truffle or the pig moved down (or rolled) this turn
   pig: number
   eaten: number
   status: Status
 }
 
-export type EventType = 'dig' | 'eat' | 'push' | 'fall' | 'roll' | 'land' | 'crush' | 'open' | 'win' | 'bump'
+export type EventType = 'dig' | 'eat' | 'push' | 'step' | 'drop' | 'fall' | 'roll' | 'land' | 'crush' | 'open' | 'win' | 'bump'
 
 export interface GameEvent {
   type: EventType

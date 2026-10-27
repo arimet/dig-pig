@@ -5,16 +5,16 @@
     "en": "First Snuffle"
   },
   "idea": {
-    "fr": "Une pierre tombe dès que tu creuses sous elle. Laisse-la finir sa chute avant de passer.",
-    "en": "A stone falls as soon as you dig under it. Let it land before you walk past."
+    "fr": "Le cochon tombe dès que rien ne le porte. Creuse sous tes pattes pour descendre.",
+    "en": "The pig drops when nothing holds it up. Dig under your trotters to go down."
   },
   "grid": [
     "########",
-    "# o X  #",
-    "#*... .#",
-    "## #.#.#",
-    "# .#P# #",
+    "###   ##",
+    "#P.. o #",
+    "##.* . #",
+    "# #. #X#",
     "########"
   ],
-  "solution": "UULLLWWURRR"
+  "solution": "RRDRWRRD"
 }

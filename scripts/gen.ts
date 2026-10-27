@@ -68,7 +68,7 @@ function evaluate(g: string[][]): Scored | null {
   if (truffles < 1 || truffles > MAX_TRUFFLES || count('o') > MAX_STONES) return null
   const level = parseLevel({ id: 0, grid })
   // a level opens on a still forest: nothing falls before the first move
-  if (step(level, createState(level), 'W').events.some(e => e.type === 'fall' || e.type === 'roll')) return null
+  if (step(level, createState(level), 'W').events.some(e => e.type === 'fall' || e.type === 'roll' || e.type === 'drop')) return null
   const a = analyse(level, { budget: BUDGET })
   if (!a.complete || !a.solvable) return null
   for (const need of NEEDS) {

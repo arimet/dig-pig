@@ -1,8 +1,8 @@
 import { ALL_RULES, BEDROCK, EMPTY, EXIT, HUMUS, PIG, STONE, TRUFFLE } from './types'
 import type { GameEvent, Level, Move, Rules, State } from './types'
 
-export const MOVES: readonly Move[] = ['U', 'D', 'L', 'R', 'W']
-export const DELTA: Record<Move, [number, number]> = { U: [0, -1], D: [0, 1], L: [-1, 0], R: [1, 0], W: [0, 0] }
+export const MOVES: readonly Move[] = ['D', 'L', 'R', 'W']
+export const DELTA: Record<Move, [number, number]> = { D: [0, 1], L: [-1, 0], R: [1, 0], W: [0, 0] }
 
 const CHARS: Record<string, number> = { ' ': EMPTY, '.': HUMUS, '#': BEDROCK, o: STONE, '*': TRUFFLE, X: EXIT, P: PIG }
 export const CHAR_OF = Object.fromEntries(Object.entries(CHARS).map(([k, v]) => [v, k])) as Record<number, string>
@@ -39,8 +39,9 @@ export function createState(level: Level): State {
 }
 
 export const exitOpen = (level: Level, s: State) => s.eaten >= level.need
+export const supported = (level: Level, s: State) => s.cells[s.pig + level.width] !== EMPTY
 
-// One turn: the pig acts, then every stone and truffle settles by one tile, scanning
+// One turn: the pig acts, then the pig, every stone and every truffle settle by one tile, scanning
 // from the bottom row up so a stack falls together, left to right within a row.
 export function step(level: Level, prev: State, move: Move, rules: Rules = ALL_RULES): { state: State; events: GameEvent[] } {
   if (prev.status !== 'playing') return { state: prev, events: [] }
@@ -58,41 +59,63 @@ export function step(level: Level, prev: State, move: Move, rules: Rules = ALL_R
     if (s.eaten === level.need) events.push({ type: 'open', cell: cells.indexOf(EXIT) })
   }
 
-  if (move !== 'W') {
-    const [dx, dy] = DELTA[move]
-    const to = s.pig + dy * w + dx
+  // The pig acts only with something under its trotters: in mid-air it just keeps falling.
+  const open = exitOpen(level, s)
+  const enterable = (c: number) => c === EMPTY || c === HUMUS || c === TRUFFLE || (c === EXIT && open)
+  const enter = (to: number): boolean => {
     const c = cells[to]
-    if (c === EMPTY || c === HUMUS) {
-      if (c === HUMUS) events.push({ type: 'dig', cell: to })
-      shift(s.pig, to)
-      s.pig = to
-    } else if (c === TRUFFLE) {
-      eat(to)
-      cells[to] = EMPTY
-      shift(s.pig, to)
-      s.pig = to
-    } else if (c === EXIT && exitOpen(level, s)) {
+    if (c === HUMUS) events.push({ type: 'dig', cell: to })
+    if (c === TRUFFLE) { eat(to); cells[to] = EMPTY }
+    if (c === EXIT) {
       cells[s.pig] = EMPTY; ids[to] = ids[s.pig]; ids[s.pig] = 0
       s.pig = to
       s.status = 'won'
       events.push({ type: 'win', cell: to })
-      return { state: s, events }
-    } else if (c === STONE && dy === 0 && rules.push && cells[to + dx] === EMPTY && !falling[to]) {
+      return true
+    }
+    shift(s.pig, to)
+    s.pig = to
+    return false
+  }
+  if (move !== 'W' && supported(level, s)) {
+    const [dx, dy] = DELTA[move]
+    const to = s.pig + dy * w + dx
+    const c = cells[to]
+    const up = to - w
+    if (enterable(c)) {
+      if (enter(to)) return { state: s, events }
+    } else if (c === STONE && dx && rules.push && cells[to + dx] === EMPTY && !falling[to]) {
       events.push({ type: 'push', cell: to, id: ids[to] })
       shift(to, to + dx)
       shift(s.pig, to)
       s.pig = to
+    } else if (dx && cells[s.pig - w] === EMPTY && enterable(cells[up])) {
+      // a one-tile ledge: the pig hops up onto it, head first through the free space above
+      events.push({ type: 'step', cell: up })
+      if (enter(up)) return { state: s, events }
     } else events.push({ type: 'bump', cell: to })
   }
 
   const done = new Uint8Array(cells.length)
+  if (s.pig !== prev.pig) done[s.pig] = 1 // where the pig just went, it stays this turn: a drop starts on the next one
   for (let y = level.height - 2; y >= 1; y--) {
     for (let x = 1; x < w - 1; x++) {
       const i = y * w + x
       const c = cells[i]
-      if (done[i] || (c !== STONE && c !== TRUFFLE)) continue
+      if (done[i] || (c !== STONE && c !== TRUFFLE && c !== PIG)) continue
       const below = i + w
       const b = cells[below]
+      if (c === PIG) {
+        // nothing holds it up: the pig drops a tile, unhurt whatever the height
+        if (b === EMPTY) {
+          shift(i, below)
+          falling[below] = 1
+          done[below] = 1
+          s.pig = below
+          events.push({ type: 'drop', cell: below })
+        } else falling[i] = 0
+        continue
+      }
       if (b === EMPTY) {
         if (!falling[i]) events.push({ type: 'fall', cell: i, id: ids[i] })
         shift(i, below)
