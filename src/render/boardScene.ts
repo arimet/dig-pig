@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import type { Frame } from '../game/controller'
+import { DEATH_SECONDS, TURN_SECONDS, type Frame } from '../game/controller'
 import { exitOpen } from '../sim/sim'
 import { BEDROCK, EMPTY, EXIT, HUMUS, STONE, TRUFFLE } from '../sim/types'
 import type { GameEvent, Level, State } from '../sim/types'
@@ -9,7 +9,7 @@ import { forestDecor } from './forest'
 import {
   MATERIALS, bedrockGeometry, cavityGeometry, createPig, exitGeometries, humusGeometry, sparkleGeometry, stoneGeometry, truffleGeometry,
 } from './models'
-import { type PigAction, pigPath, posePig, soilLeft, truffleLeft } from './pigAnim'
+import { type PigAction, crushDrop, pigPath, posePig, soilLeft, truffleLeft } from './pigAnim'
 import { PALETTE } from './palette'
 import { detectQuality } from './quality'
 import { createStage } from './stage'
@@ -33,6 +33,7 @@ const KEEP = new Set<object>([
 const STONE_RADIUS = 0.44 // the stone model is 21 voxels tall at 24 per tile
 const CRUMBS = 12
 const CRUMB_LIFE = 0.7
+const FLAT = 0.4 // a crushed pig keeps this much of its height
 
 // What the pig is doing during a turn, from what the turn did.
 function actionOf(events: GameEvent[], from: State, to: State, width: number): PigAction {
@@ -58,6 +59,7 @@ export class BoardScene {
   private humus = new Map<number, THREE.Mesh>()
   private pieces = new Map<number, THREE.Object3D>()
   private pig = createPig(MATERIALS.lit)
+  private pigHeight = new THREE.Box3().setFromObject(this.pig).max.y // from its trotters to the top of its back
   private facing = 1 // +1 right, -1 left
   private yaw = 0
   private door: THREE.Mesh | null = null
@@ -225,14 +227,23 @@ export class BoardScene {
     this.pig.position.set(q0.x + (q1.x - q0.x) * path.x, q0.y + (q1.y - q0.y) * path.y, 0)
     this.pig.position.y -= 0.5
     this.pig.position.z = 0.05
-    posePig(this.pig, action, a, clock)
+    // crushed: the stone that killed it keeps falling onto its back and flattens it; a rewind lifts it off
+    const dead = f.to.status === 'dead' ? f.to : f.from.status === 'dead' ? f.from : null
+    let flat = 0
+    if (dead) {
+      const gap = 1 - this.pigHeight, give = (1 - FLAT) * this.pigHeight // the stone rests on the floor of the tile above
+      const drop = dead === f.to ? crushDrop(f.dyingT * DEATH_SECONDS, 1 / TURN_SECONDS, gap, give) : (1 - a) * (gap + give)
+      const stone = this.pieces.get(dead.ids[dead.pig - level.width])
+      if (stone) stone.position.y -= drop
+      flat = Math.max(0, drop - gap) / give
+    }
+    posePig(this.pig, flat ? 'crushed' : action, flat || a, clock)
     if (f.to !== this.lastTo) {
       this.lastTo = f.to
       if ((action === 'dig' || action === 'digDown') && f.alpha < 1) this.burst(pos(p0), pos(p1), clock)
     }
     this.renderCrumbs(clock)
-    const crushed = f.to.status === 'dead' ? Math.min(1, f.dyingT * 6) : 0
-    this.pig.scale.set(1 + 0.25 * crushed, 1 - 0.6 * crushed, 1 + 0.25 * crushed)
+    this.pig.scale.set(1 + 0.25 * flat, 1 - (1 - FLAT) * flat, 1 + 0.25 * flat)
     // through the open door, the pig walks out of sight
     this.pig.visible = !(f.to.status === 'won' && a >= 1)
 

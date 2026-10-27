@@ -1,6 +1,6 @@
 import type * as THREE from 'three'
 
-export type PigAction = 'idle' | 'walk' | 'dig' | 'digDown' | 'eat' | 'push' | 'hop' | 'fall' | 'land'
+export type PigAction = 'idle' | 'walk' | 'dig' | 'digDown' | 'eat' | 'push' | 'hop' | 'fall' | 'land' | 'crushed'
 
 type Parts = Record<'rig' | 'head' | 'tail' | 'legFL' | 'legFR' | 'legBL' | 'legBR', THREE.Object3D>
 
@@ -30,6 +30,14 @@ export function pigPath(action: PigAction, a: number): { x: number; y: number } 
 export const soilLeft = (a: number) => 1 - smooth(0.25, ROOT_END + 0.1, a)
 // When a truffle disappears into the snout during an eat turn: 1 = whole, 0 = eaten.
 export const truffleLeft = (a: number) => 1 - smooth(0.22, 0.5, a)
+
+// A stone falling onto the pig keeps its speed through the gap above the pig's back, then slows down
+// as the body gives under it. Returns how far it has dropped `t` seconds after the turn ended.
+export function crushDrop(t: number, speed: number, gap: number, give: number): number {
+  if (t < gap / speed) return speed * t
+  const u = Math.min(1, (t - gap / speed) / ((2 * give) / speed)) // eases out from the same speed
+  return gap + give * (1 - (1 - u) ** 2)
+}
 
 // Trot: diagonal legs together (front-left with back-right). Positive rotation.z swings a foot forward.
 // Two strides per tile: legs are a fifth of a tile long, so each stride covers a quarter tile.
@@ -126,5 +134,14 @@ export function posePig(pig: THREE.Object3D, action: PigAction, a: number, clock
       p.rig.scale.x = p.rig.scale.z = 1 + 0.07 * squash
       break
     }
+    case 'crushed':
+      // `a` is how flat the stone has pressed it: the legs buckle outwards, the chin goes to the ground,
+      // the tail stops wagging and drops
+      p.legFL.rotation.z = p.legFR.rotation.z = 1.2 * a
+      p.legBL.rotation.z = p.legBR.rotation.z = -1.2 * a
+      p.head.rotation.z = -0.25 * a
+      p.tail.rotation.y *= 1 - a
+      p.tail.rotation.z = -0.6 * a
+      break
   }
 }
