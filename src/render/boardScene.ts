@@ -2,13 +2,15 @@ import * as THREE from 'three'
 import type { Frame } from '../game/controller'
 import { exitOpen } from '../sim/sim'
 import { BEDROCK, EXIT, HUMUS, STONE, TRUFFLE } from '../sim/types'
-import type { Level, State } from '../sim/types'
+import type { GameEvent, Level, State } from '../sim/types'
 import { createDiorama } from './diorama'
 import { disposeTree } from './dispose'
 import { forestDecor } from './forest'
 import {
   MATERIALS, bedrockGeometry, cavityGeometry, createPig, exitGeometries, humusGeometry, sparkleGeometry, stoneGeometry, truffleGeometry,
 } from './models'
+import { type PigAction, pigProgress, posePig, soilLeft, truffleLeft } from './pigAnim'
+import { PALETTE } from './palette'
 import { detectQuality } from './quality'
 import { createStage } from './stage'
 
@@ -28,7 +30,20 @@ const KEEP = new Set<object>([
   ...Object.values(shared.exit), ...Object.values(MATERIALS),
 ])
 
-const ease = (t: number) => t * t * (3 - 2 * t)
+const CRUMBS = 12
+const CRUMB_LIFE = 0.7
+
+// What the pig is doing during a turn, from what the turn did.
+function actionOf(events: GameEvent[], from: number, to: number, width: number): PigAction {
+  const types = new Set(events.map(e => e.type))
+  if (types.has('dig')) return 'dig'
+  if (types.has('push')) return 'push'
+  if (types.has('eat') && from !== to) return 'eat'
+  const dy = Math.floor(to / width) - Math.floor(from / width)
+  if (dy < 0) return 'climb'
+  if (dy > 0) return 'drop'
+  return from === to ? 'idle' : 'walk'
+}
 
 // The level as a slice of forest soil seen from the front: gravity points down the screen.
 export class BoardScene {
@@ -47,6 +62,14 @@ export class BoardScene {
   private door: THREE.Mesh | null = null
   private glow: THREE.Mesh | null = null
   private decor: THREE.Group | null = null
+  private lastTo: State | null = null
+  private lastClock = 0
+  // soil thrown back by the snout: one burst per dig, replayed from the clock so captures are exact
+  private crumbs = new THREE.InstancedMesh(new THREE.BoxGeometry(1 / 14, 1 / 14, 1 / 14), new THREE.MeshStandardMaterial({ roughness: 1 }), CRUMBS)
+  private crumbAt = -Infinity
+  private crumbFrom = new THREE.Vector3()
+  private crumbDir = new THREE.Vector2()
+  private crumbFloor = 0
 
   constructor(private canvas: HTMLCanvasElement) {
     const stage = createStage(canvas)
@@ -96,6 +119,12 @@ export class BoardScene {
     this.root.add(this.decor)
     this.pig.traverse(o => { o.castShadow = this.quality === 'high' })
     this.root.add(this.pig)
+    const colors = [PALETTE.humus1, PALETTE.humus2, PALETTE.humus3, PALETTE.humusSpeck]
+    for (let i = 0; i < CRUMBS; i++) this.crumbs.setColorAt(i, new THREE.Color(colors[i % 4]))
+    this.crumbs.visible = false
+    this.root.add(this.crumbs)
+    this.crumbAt = -Infinity
+    this.lastTo = null
     this.facing = 1
     this.resize()
   }
@@ -146,35 +175,56 @@ export class BoardScene {
       const sp = p.userData.sparkle as THREE.Mesh | undefined
       if (sp) sp.scale.setScalar(Math.max(0, Math.sin(clock * 2.2 + id * 1.7)) ** 3)
     }
-    // eaten this turn: the truffle shrinks into the pig's snout
+    const p0 = f.from.pig, p1 = f.to.pig
+    const action = f.phase === 'dying' ? 'idle' : actionOf(f.events, p0, p1, level.width)
+    // eaten this turn: the truffle shrinks into the snout as it reaches it
     for (const [id, cell] of from) {
       if (to.has(id)) continue
       const p = this.piece(id, TRUFFLE)
-      p.visible = a < 1
+      const left = truffleLeft(a)
+      p.visible = left > 0
       p.position.copy(pos(cell))
-      p.scale.setScalar(1 - ease(a))
+      p.position.x -= (1 - left) * 0.25 * this.facing
+      p.scale.setScalar(left)
     }
 
+    // the dug tile is eaten away from the snout's side: its far face stays put until the end
+    const dug = p1 - p0
     for (const [cell, m] of this.humus) {
       const now = f.to.cells[cell] === HUMUS, before = f.from.cells[cell] === HUMUS
-      m.visible = now || (before && a < 1)
-      m.scale.setScalar(now ? 1 : 1 - 0.6 * ease(a))
+      const left = now ? 1 : before ? soilLeft(a) : 0
+      m.visible = left > 0
+      m.position.copy(pos(cell))
+      m.scale.set(1, 1, 1)
+      if (left < 1 && cell === p1) {
+        const sideways = Math.abs(dug) === 1
+        const k = Math.max(0.02, left)
+        if (sideways) { m.scale.x = k; m.position.x += Math.sign(dug) * (1 - k) / 2 }
+        else { m.scale.y = k; m.position.y -= Math.sign(dug) * (1 - k) / 2 }
+      }
     }
 
     const open = exitOpen(level, f.to)
     if (this.door) this.door.visible = !open
     if (this.glow) this.glow.visible = open
 
-    // the pig
-    const p0 = f.from.pig, p1 = f.to.pig
+    // the pig turns round on the spot (through facing the camera), then acts
+    const dt = Math.max(0, clock - this.lastClock)
+    this.lastClock = clock
     const dx = (p1 % level.width) - (p0 % level.width)
     if (dx) this.facing = Math.sign(dx)
     const targetYaw = this.facing > 0 ? 0 : Math.PI
-    this.yaw += (targetYaw - this.yaw) * Math.min(1, 0.35)
+    this.yaw += (targetYaw - this.yaw) * Math.min(1, dt * 22)
     this.pig.rotation.y = this.yaw
-    this.pig.position.lerpVectors(pos(p0), pos(p1), ease(a))
+    this.pig.position.lerpVectors(pos(p0), pos(p1), pigProgress(action, a))
     this.pig.position.y -= 0.5
     this.pig.position.z = 0.05
+    posePig(this.pig, action, a, clock)
+    if (f.to !== this.lastTo) {
+      this.lastTo = f.to
+      if (action === 'dig' && f.alpha < 1) this.burst(pos(p0), pos(p1), clock)
+    }
+    this.renderCrumbs(clock)
     const crushed = f.to.status === 'dead' ? Math.min(1, f.dyingT * 6) : 0
     this.pig.scale.set(1 + 0.25 * crushed, 1 - 0.6 * crushed, 1 + 0.25 * crushed)
     // through the open door, the pig walks out of sight
@@ -183,6 +233,42 @@ export class BoardScene {
     this.decor?.userData.update?.(clock)
     if (this.diorama) this.diorama.render()
     else this.renderer.render(this.scene, this.camera)
+  }
+
+  private burst(from: THREE.Vector3, to: THREE.Vector3, clock: number) {
+    this.crumbAt = clock
+    const d = to.clone().sub(from)
+    this.crumbDir.set(d.x, d.y)
+    // where the snout meets the soil: the shared edge, at snout height for a sideways dig
+    this.crumbFrom.copy(from).addScaledVector(d, 0.5)
+    if (d.x) this.crumbFrom.y += -0.5 + 0.3
+    this.crumbFloor = Math.min(from.y, to.y) - 0.5
+  }
+
+  // Each crumb breaks off the soil face as the snout jabs, hops a little toward the pig and settles
+  // on the floor at the foot of the cut, on both sides of the pig so none passes through it.
+  private renderCrumbs(clock: number) {
+    const t0 = clock - this.crumbAt
+    this.crumbs.visible = t0 >= 0 && t0 < CRUMB_LIFE + 0.4
+    if (!this.crumbs.visible) return
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), sc = new THREE.Vector3()
+    const rnd = (i: number, k: number) => { const x = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453; return x - Math.floor(x) }
+    for (let i = 0; i < CRUMBS; i++) {
+      const t = t0 - (i % 3) * 0.09 // one handful per jab
+      const back = -Math.sign(this.crumbDir.x || this.crumbDir.y)
+      const vx = this.crumbDir.x ? back * (0.15 + 0.45 * rnd(i, 1)) : (rnd(i, 1) - 0.5) * 0.8
+      const vy = 0.3 + 0.7 * rnd(i, 2)
+      const side = i % 2 ? 1 : -1 // in front of the pig or behind it
+      const tt = Math.max(0, t)
+      v.set(this.crumbFrom.x + vx * tt, this.crumbFrom.y + (rnd(i, 3) - 0.5) * 0.25 + vy * tt - 4.9 * tt * tt, side * (0.28 + 0.12 * rnd(i, 4)))
+      const landed = v.y < this.crumbFloor + 0.03
+      if (landed) v.y = this.crumbFloor + 0.03
+      const s = t < 0 ? 0 : Math.max(0, Math.min(1, 1 - (t - CRUMB_LIFE * 0.6) / (CRUMB_LIFE * 0.4)))
+      e.set(landed ? 0 : tt * 9 * rnd(i, 5), landed ? 0 : tt * 7, landed ? 0 : tt * 11)
+      m.compose(v, q.setFromEuler(e), sc.setScalar(s))
+      this.crumbs.setMatrixAt(i, m)
+    }
+    this.crumbs.instanceMatrix.needsUpdate = true
   }
 
   resize(): void {

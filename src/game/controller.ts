@@ -18,7 +18,8 @@ export interface ControllerHooks {
   onPhase?(p: Phase): void
 }
 
-export const TURN_SECONDS = 0.13
+export const TURN_SECONDS = 0.2
+export const WORK_SECONDS = 0.32 // digging, pushing and eating take the pig a little longer than a step
 export const DEATH_SECONDS = 1.1
 export const UNDO_SECONDS = 0.1
 
@@ -111,7 +112,8 @@ export class GameController {
       if (this.t >= 1) this.undone = null
       return { ...f, events: [] }
     }
-    this.t = Math.min(1, this.t + dt / TURN_SECONDS)
+    const work = this.turnEvents.at(-1)?.some(e => e.type === 'dig' || e.type === 'push' || e.type === 'eat')
+    this.t = Math.min(1, this.t + dt / (work ? WORK_SECONDS : TURN_SECONDS))
     if (this.phase === 'dying') {
       if (this.clock >= DEATH_SECONDS) this.undo()
       return this.frame(this.history.at(-2) ?? this.state, this.state, 1)

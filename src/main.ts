@@ -9,6 +9,7 @@ import { sfx, unlockAudio } from './audio/sfx'
 import { GameController, type Phase } from './game/controller'
 import { LEVELS, WORLDS, worldOf } from './levels'
 import { BoardScene } from './render/boardScene'
+import { parseLevel } from './sim/level'
 import type { GameEvent, Level, Move } from './sim/types'
 import { getLang, setLang, t } from './ui/i18n'
 import { icon } from './ui/icons'
@@ -38,8 +39,8 @@ function playEvents(events: GameEvent[]) {
   if (types.has('open')) sfx.open()
 }
 
-function startLevel(id: number) {
-  level = LEVELS.find(l => l.id === id) ?? LEVELS[0]
+function startLevel(id: number, custom?: Level) {
+  level = custom ?? LEVELS.find(l => l.id === id) ?? LEVELS[0]
   phase = 'playing'
   game.dispose()
   game = new GameController(level, {
@@ -168,4 +169,5 @@ scene.renderer.setAnimationLoop(now => {
   scene.render(game.update(dt), clock)
 })
 
-if (import.meta.env.DEV) Object.assign(window, { __td: { scene, dev, get game() { return game } } })
+// dev-only: __td.load(grid) plays any grid, for captures of a given moment
+if (import.meta.env.DEV) Object.assign(window, { __td: { scene, dev, get game() { return game }, load: (grid: string[]) => startLevel(0, parseLevel({ id: 0, name: '', idea: '', grid })) } })
