@@ -1,4 +1,5 @@
 import { createState, settled, stateKey, step } from '../sim/sim'
+import { analyse } from '../sim/solver'
 import type { GameEvent, Level, Move, State } from '../sim/types'
 
 export type Phase = 'playing' | 'dying' | 'won'
@@ -42,6 +43,8 @@ export class GameController {
   private undos = 0
   private solutionShown = false
   private autoplay: Move[] = []
+  private stuckAt: State | null = null // the state `stuckThere` was worked out for
+  private stuckThere = false
 
   constructor(readonly level: Level, private hooks: ControllerHooks = {}) {
     this.history = [createState(level)]
@@ -53,6 +56,19 @@ export class GameController {
 
   get turns(): number {
     return this.history.length - 1
+  }
+
+  // No way left to the door from here, once everything has come to rest. A search the budget cuts
+  // short counts as a way out: better say nothing than send the player back for nothing.
+  get stuck(): boolean {
+    const s = this.state
+    if (s.status !== 'playing' || this.autoplay.length || !settled(this.level, s)) return false
+    if (this.stuckAt !== s) {
+      const a = analyse(this.level, { from: s, budget: 20_000 })
+      this.stuckAt = s
+      this.stuckThere = a.complete && !a.solvable
+    }
+    return this.stuckThere
   }
 
   // Undos, restarts and crushes all count: stars reward a clean run.

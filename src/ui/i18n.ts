@@ -55,6 +55,7 @@ const fr = {
   worldDone: (next: string | null) => next ? `Monde terminé ! Direction ${next}.` : 'Monde terminé !',
   portrait: 'Tourne ton téléphone pour jouer',
   crushed: 'Une pierre est tombée sur le cochon. On reprend juste avant.',
+  stuck: 'Le cochon ne peut plus atteindre la sortie.',
   fps: 'i/s',
 }
 
@@ -100,6 +101,7 @@ const en: Strings = {
   worldDone: next => next ? `World complete! Next stop: ${next}.` : 'World complete!',
   portrait: 'Turn your phone to play',
   crushed: 'A stone fell on the pig. Back to just before.',
+  stuck: 'The pig can no longer reach the door.',
   fps: 'fps',
 }
 

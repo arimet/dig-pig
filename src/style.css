@@ -198,6 +198,9 @@ button { font: inherit; color: inherit; cursor: pointer; -webkit-tap-highlight-c
 .cause { display: none; max-width: 30ch; padding: 8px 12px; font-size: 15px; font-weight: 700; text-align: left; transform: rotate(-0.8deg); animation: cause-in 320ms var(--ease-out) both; }
 .cause.on { display: block; }
 @keyframes cause-in { from { opacity: 0; transform: rotate(-0.8deg) translateY(-8px); } }
+.stuck p { margin: 0; }
+.stuck { padding-top: 17px; } /* clear of the pin */
+.stuck .actions { justify-content: flex-start; flex-wrap: nowrap; gap: 8px; margin-top: 8px; filter: none; animation: none; }
 .hud-info:has(.cause.on) .idea { display: none; } /* the folded hint would leave a gap above the cause */
 .pad {
   position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: max(14px, env(safe-area-inset-bottom));

@@ -82,10 +82,10 @@ function* successors(level: Level, s: State, free: boolean, rules: Rules): Gener
 
 // Breadth-first over decisions, then backwards from the winning states to learn which
 // states can still be won.
-export function analyse(level: Level, opts: { budget?: number; rules?: Rules } = {}): Analysis {
+export function analyse(level: Level, opts: { budget?: number; rules?: Rules; from?: State } = {}): Analysis {
   const budget = opts.budget ?? 200_000
   const rules = opts.rules ?? ALL_RULES
-  const start = createState(level)
+  const start = opts.from ?? createState(level)
   const first = keyOf(level, start, rules)
   const states: State[] = [start]
   const free = [first.free]

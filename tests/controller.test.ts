@@ -34,6 +34,17 @@ describe('GameController', () => {
     expect(g.mistakes).toBe(1)
   })
 
+  it('tells when the door can no longer be reached, until the move is taken back', () => {
+    // digging down drops the pig into a pit it cannot climb out of
+    const g = new GameController(lv(['#####', '#P*X#', '#.###', '#   #', '#####']))
+    expect(g.stuck).toBe(false)
+    g.request('D')
+    run(g, WORK_SECONDS + TURN_SECONDS * 3)
+    expect(g.stuck).toBe(true)
+    g.undo()
+    expect(g.stuck).toBe(false)
+  })
+
   it('the solution replays to a win and earns no star', () => {
     const level = { ...lv(['######', '#P.*X#', '######']), solution: 'RRR' }
     let won = false

@@ -89,7 +89,14 @@ export function createScreens(root: HTMLElement, on: ScreenHandlers) {
   const cause = h('p', 'paper cause')
   cause.setAttribute('role', 'status')
   let causeShown = false
-  info.append(plate, idea, cause)
+  // no way left to the door: say so, with the way back at hand
+  const stuck = h('div', 'paper cause stuck')
+  stuck.setAttribute('role', 'status')
+  const stuckText = h('p')
+  const stuckUndo = button('', 'small', () => on.onUndo(), icon('undo'))
+  const stuckRestart = button('', 'small', () => on.onRestart(), icon('restart'))
+  stuck.append(stuckText, actions(stuckUndo, stuckRestart))
+  info.append(plate, idea, cause, stuck)
   // the hint folds into the plate after a while (it would hide the board's corner); tap the plate to see it again
   let foldTimer = 0
   const showIdea = (open: boolean) => {
@@ -193,6 +200,9 @@ export function createScreens(root: HTMLElement, on: ScreenHandlers) {
     label(cNo, s.cancel)
     portrait.textContent = s.portrait
     cause.textContent = causeShown ? s.crushed : ''
+    stuckText.textContent = s.stuck
+    label(stuckUndo, s.undo, s.undoKey)
+    label(stuckRestart, s.restart, s.restartKey)
     shownCount = ''
     if (shownLevel) {
       plateNum.textContent = s.level(shownLevel.id)
@@ -251,6 +261,11 @@ export function createScreens(root: HTMLElement, on: ScreenHandlers) {
       causeShown = on
       cause.textContent = on ? t().crushed : ''
       cause.classList.toggle('on', on)
+      if (on) showIdea(false)
+    },
+    showStuck(on: boolean) {
+      if (on === stuck.classList.contains('on')) return
+      stuck.classList.toggle('on', on)
       if (on) showIdea(false)
     },
     updateHud(s: { eaten: number; need: number; turns: number; busy: boolean }) {

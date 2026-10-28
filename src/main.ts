@@ -26,7 +26,10 @@ let game = new GameController(level)
 let playing = false
 let phase: Phase = 'playing'
 
-const refreshHud = () => screens.updateHud({ eaten: game.state.eaten, need: level.need, turns: game.turns, busy: phase !== 'playing' })
+const refreshHud = () => {
+  screens.updateHud({ eaten: game.state.eaten, need: level.need, turns: game.turns, busy: phase !== 'playing' })
+  screens.showStuck(playing && phase === 'playing' && game.stuck)
+}
 
 function playEvents(events: GameEvent[]) {
   const types = new Set(events.map(e => e.type))
