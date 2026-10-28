@@ -66,6 +66,9 @@ function evaluate(g: string[][]): Scored | null {
   const truffles = grid.join('').split('*').length - 1
   const count = (c: string) => grid.join('').split(c).length - 1
   if (truffles < 1 || truffles > MAX_TRUFFLES || count('o') > MAX_STONES) return null
+  // the door stands on rock, never in mid-air or on something that can be dug, eaten or moved
+  const [dx, dy] = find(g, 'X')
+  if (g[dy + 1][dx] !== '#') return null
   const level = parseLevel({ id: 0, grid })
   // a level opens on a still forest: nothing falls before the first move
   if (step(level, createState(level), 'W').events.some(e => e.type === 'fall' || e.type === 'roll' || e.type === 'drop')) return null
