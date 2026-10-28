@@ -32,6 +32,7 @@ export class GameController {
   private t = 1 // progress through the last turn
   private undone: State | null = null // the state being taken back, while the undo plays
   private winPending = false
+  private deathPending = false // the fatal turn plays out (the stone falls its last tile) before the crush
   private phase: Phase = 'playing'
   private clock = 0
   private undos = 0
@@ -69,6 +70,7 @@ export class GameController {
     if (this.phase === 'won' || this.history.length < 2) return false
     this.queue = []
     this.autoplay = []
+    this.deathPending = false
     // a fall is not a choice: take back the turns spent in mid-air along with the one that led there
     do {
       this.undone = this.history.pop()!
@@ -84,6 +86,7 @@ export class GameController {
     if (this.history.length < 2 && this.phase === 'playing') return
     this.history = [this.history[0]]
     this.turnEvents = [[]]
+    this.deathPending = false
     this.queue = []
     this.autoplay = []
     this.undos++
@@ -117,6 +120,10 @@ export class GameController {
     }
     const work = this.turnEvents.at(-1)?.some(e => e.type === 'dig' || e.type === 'push' || e.type === 'eat')
     this.t = Math.min(1, this.t + dt / (work ? WORK_SECONDS : TURN_SECONDS))
+    if (this.t >= 1 && this.deathPending) {
+      this.deathPending = false
+      this.enter('dying')
+    }
     if (this.phase === 'dying') {
       if (this.clock >= DEATH_SECONDS) this.undo()
       return this.frame(this.history.at(-2) ?? this.state, this.state, 1)
@@ -151,7 +158,7 @@ export class GameController {
     this.turnEvents.push(events)
     this.t = 0
     this.hooks.onTurn?.(events)
-    if (state.status === 'dead') this.enter('dying')
+    if (state.status === 'dead') this.deathPending = true
     if (state.status === 'won') { this.enter('won'); this.winPending = true }
   }
 

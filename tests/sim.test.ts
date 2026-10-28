@@ -69,10 +69,23 @@ describe('step', () => {
   })
 
   it('a truffle falling on the pig is eaten', () => {
-    const level = lv(['#####', '#*  #', '#   #', '#P X#', '#####'])
-    let s = step(level, createState(level), 'W').state // the truffle falls one tile
-    s = step(level, s, 'W').state // and lands on the pig, still falling
+    const level = lv(['#####', '#*  #', '#   #', '#   #', '#P X#', '#####'])
+    let s = step(level, createState(level), 'W').state // the truffle starts to fall
+    s = step(level, s, 'W').state // and reaches the pig, already falling
     expect(s.eaten).toBe(1)
     expect(s.status).toBe('playing')
+  })
+
+  it('a stone that only starts to fall above the pig settles on its back, a falling one crushes it at once', () => {
+    // dig down from under a resting stone: it follows the pig down and rests on it
+    const down = after(['#####', '# o #', '# P #', '# . #', '# #X#', '#####'], 'DW')
+    expect(down.s.status).toBe('playing')
+    expect(down.rows[2]).toBe('# o #')
+    // a stone falling from two tiles up
+    const level = lv(['#####', '# o #', '#   #', '#   #', '# P #', '#X..#', '#####'])
+    let s = step(level, createState(level), 'W').state
+    expect(s.status).toBe('playing')
+    s = step(level, s, 'W').state
+    expect(s.status).toBe('dead')
   })
 })

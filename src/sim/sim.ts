@@ -116,21 +116,30 @@ export function step(level: Level, prev: State, move: Move, rules: Rules = ALL_R
         } else falling[i] = 0
         continue
       }
+      // A falling stone hits the pig as soon as it reaches the tile above it; a truffle drops into its mouth.
+      const hit = (at: number) => {
+        if (cells[at] === TRUFFLE) {
+          eat(at)
+          cells[at] = EMPTY; ids[at] = 0; falling[at] = 0
+        } else {
+          s.status = 'dead'
+          falling[at] = 0
+          events.push({ type: 'crush', cell: at + w, id: ids[at] })
+        }
+      }
       if (b === EMPTY) {
-        if (!falling[i]) events.push({ type: 'fall', cell: i, id: ids[i] })
+        const was = falling[i]
+        if (!was) events.push({ type: 'fall', cell: i, id: ids[i] })
         shift(i, below)
         falling[below] = 1
         done[below] = 1
-      } else if (b === PIG && falling[i]) {
-        if (c === TRUFFLE) {
-          // a falling truffle drops into the pig's mouth
-          eat(i)
-          cells[i] = EMPTY; ids[i] = 0; falling[i] = 0
-        } else {
-          s.status = 'dead'
-          falling[i] = 0
-          events.push({ type: 'crush', cell: below, id: ids[i] })
+        if (cells[below + w] === PIG) {
+          // one that only just started to fall settles on the pig's back; one already falling hits it
+          if (was) hit(below)
+          else { falling[below] = 0; events.push({ type: 'land', cell: below, id: ids[below] }) }
         }
+      } else if (b === PIG && falling[i]) {
+        hit(i) // the pig stepped in under a falling stone
       } else {
         const side = rules.roll && (b === STONE || b === TRUFFLE)
           ? [-1, 1].find(d => cells[i + d] === EMPTY && cells[below + d] === EMPTY)
