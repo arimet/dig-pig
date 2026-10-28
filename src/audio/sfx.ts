@@ -1,5 +1,5 @@
 // Sound effects synthesised with Web Audio. Silent when Web Audio is missing or muted.
-const MUTE_KEY = 'truffe-dash:muted'
+const MUTE_KEY = 'dig-pig:muted'
 
 let ctx: AudioContext | null = null
 let master: GainNode | null = null

@@ -11,7 +11,7 @@ export function starsFor(mistakes: number, usedSolution: boolean): number {
   return mistakes === 0 ? 3 : mistakes <= 3 ? 2 : 1
 }
 
-export const STORAGE_KEY = 'truffe-dash:progress'
+export const STORAGE_KEY = 'dig-pig:progress'
 
 const fresh = (): Progress => ({ unlocked: 1, completed: [], stars: {} })
 const isId = (n: unknown): n is number => Number.isInteger(n) && (n as number) >= 1

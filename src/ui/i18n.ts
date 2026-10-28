@@ -2,7 +2,7 @@ export type Lang = 'fr' | 'en'
 export type Text = Record<Lang, string> // a text shipped in both languages (level and world names)
 
 export const LANGS: readonly Lang[] = ['fr', 'en']
-export const LANG_KEY = 'truffe-dash:lang'
+export const LANG_KEY = 'dig-pig:lang'
 
 // A saved choice wins; otherwise French for French-speaking browsers, English for everyone else.
 export function detectLang(saved: string | null, browser: readonly string[]): Lang {

@@ -62,7 +62,7 @@ export function createScreens(root: HTMLElement, on: ScreenHandlers) {
   const title = h('section', 'screen title')
   const note = h('p', 'paper')
   const play = button('', 'red big', on.onPlay, icon('play'))
-  title.append(hanging('big', h('h1', 'logo', 'Truffe Dash')), note, actions(play))
+  title.append(hanging('big', h('h1', 'logo', 'Dig Pig')), note, actions(play))
 
   const select = h('section', 'screen select')
   const grid = h('div', 'crates')
