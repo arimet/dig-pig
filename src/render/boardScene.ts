@@ -32,7 +32,24 @@ const doorway = new THREE.Plane(new THREE.Vector3(0, 0, 1), -shared.exit.glow.bo
 pigMaterial.clippingPlanes = [doorway]
 const HINGE = new THREE.Vector3(-5 / 16, 0, -1 / 4) // the door's left edge, from the middle of its tile
 
-const KEEP = new Set<object>([pigMaterial, 
+// A warm glow behind each truffle, so the black knob stands out against the dark soil.
+const halo = (() => {
+  const c = document.createElement('canvas')
+  c.width = c.height = 64
+  const g = c.getContext('2d')!
+  const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32)
+  grad.addColorStop(0, 'rgba(255, 210, 122, 0.85)')
+  grad.addColorStop(0.45, 'rgba(255, 190, 90, 0.35)')
+  grad.addColorStop(1, 'rgba(255, 170, 70, 0)')
+  g.fillStyle = grad
+  g.fillRect(0, 0, 64, 64)
+  const map = new THREE.CanvasTexture(c)
+  map.colorSpace = THREE.SRGBColorSpace
+  const material = new THREE.MeshBasicMaterial({ map, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false })
+  return { geometry: new THREE.PlaneGeometry(1.4, 1.4), material, map }
+})()
+
+const KEEP = new Set<object>([pigMaterial, ...Object.values(halo), 
   ...shared.humus, ...shared.bedrock, ...shared.cavity, ...shared.stone, shared.truffle, shared.sparkle,
   ...Object.values(shared.exit), ...Object.values(MATERIALS),
 ])
@@ -172,6 +189,11 @@ export class BoardScene {
       s.position.set(0.18, 0.02, 0.3)
       p.add(s)
       p.userData.sparkle = s
+      const h = new THREE.Mesh(halo.geometry, halo.material.clone()) // its own, so each one pulses on its own beat
+      h.position.set(0, -0.5 + TRUFFLE_MID, -0.4)
+      h.renderOrder = -1
+      p.add(h)
+      p.userData.halo = h
     }
     p.userData.kind = kind
     this.root.add(p)
@@ -201,7 +223,9 @@ export class BoardScene {
       // a stone rolls without slipping: its turn follows from how far along the row it is
       if (p.userData.kind === STONE) p.children[0].rotation.z = p.userData.spin - p.position.x / STONE_RADIUS
       const sp = p.userData.sparkle as THREE.Mesh | undefined
-      if (sp) sp.scale.setScalar(Math.max(0, Math.sin(clock * 2.2 + id * 1.7)) ** 3)
+      if (sp) sp.scale.setScalar(1.6 * Math.max(0, Math.sin(clock * 2.2 + id * 1.7)) ** 3)
+      const h = p.userData.halo as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial> | undefined
+      if (h) h.material.opacity = 0.75 + 0.25 * Math.sin(clock * 2.4 + id * 1.7)
     }
     const p0 = f.from.pig, p1 = f.to.pig
     const action = f.phase === 'dying' ? 'idle' : actionOf(f.events, f.from, f.to, level.width)
