@@ -30,7 +30,7 @@ const pigMaterial = Object.assign(MATERIALS.lit.clone(), { clipShadows: true })
 shared.exit.glow.computeBoundingBox()
 const doorway = new THREE.Plane(new THREE.Vector3(0, 0, 1), -shared.exit.glow.boundingBox!.min.z)
 pigMaterial.clippingPlanes = [doorway]
-const HINGE = new THREE.Vector3(-5 / 16, 0, -3 / 8) // the door's left edge, from the middle of its tile
+const HINGE = new THREE.Vector3(-5 / 16, 0, -1 / 4) // the door's left edge, from the middle of its tile
 
 const KEEP = new Set<object>([pigMaterial, 
   ...shared.humus, ...shared.bedrock, ...shared.cavity, ...shared.stone, shared.truffle, shared.sparkle,

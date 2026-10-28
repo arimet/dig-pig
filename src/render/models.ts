@@ -200,7 +200,7 @@ export function exitGeometries() {
   const place = (geo: THREE.BufferGeometry) => geo.translate(-0.5, -0.5, -0.5)
   return {
     frame: place(mesh(frame, { anchor: 'corner' })),
-    door: place(mesh(door, { anchor: 'corner' })),
+    door: place(mesh(door, { anchor: 'corner' })).translate(0, 0, 0.13), // in front of the light, so the shut door hides it
     glow: place(mesh(glow, { anchor: 'corner' })).translate(0, 0, 0.13),
   }
 }
