@@ -44,6 +44,8 @@ export const supported = (level: Level, s: State) => {
   const below = s.cells[s.pig + level.width]
   return below !== EMPTY && below !== TRUFFLE && !(below === EXIT && exitOpen(level, s))
 }
+// The forest waits for the pig only once everything has come to rest: until then, turns go by on their own.
+export const settled = (level: Level, s: State) => supported(level, s) && !s.falling.some(f => f)
 
 // One turn: the pig acts, then the pig, every stone and every truffle settle by one tile, scanning
 // from the bottom row up so a stack falls together, left to right within a row.
@@ -81,7 +83,7 @@ export function step(level: Level, prev: State, move: Move, rules: Rules = ALL_R
     s.pig = to
     return false
   }
-  if (move !== 'W' && supported(level, s)) {
+  if (move !== 'W' && settled(level, s)) {
     const [dx, dy] = DELTA[move]
     const to = s.pig + dy * w + dx
     const c = cells[to]

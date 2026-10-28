@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createState, play, rowsOf, step } from '../src/sim/sim'
-import { lv } from './helpers'
+import { CRUSH, lv } from './helpers'
 
 const after = (grid: string[], moves: string) => {
   const level = lv(grid)
@@ -25,13 +25,14 @@ describe('step', () => {
     expect(after(['#####', '#.o.#', '#P.X#', '#####'], 'R').s.status).toBe('playing')
     // walk out from under a stone sideways: it falls into the gap, not on the pig
     expect(after(['#####', '#o  #', '#P X#', '#####'], 'R').s.status).toBe('playing')
-    // step under a stone that is already falling
+    // a falling stone lands on another and rolls off onto the pig, which has just dropped below
+    expect(play(lv(CRUSH), 'RW').status).toBe('dead')
+  })
+
+  it('while anything falls the pig cannot act: moves are only waits', () => {
     const level = lv(['######', '#o   #', '#    #', '#    #', '#.P X#', '######'])
-    let s = createState(level)
-    s = step(level, s, 'W').state // the stone starts falling
-    s = step(level, s, 'L').state // the pig digs into its path
-    s = step(level, s, 'W').state
-    expect(s.status).toBe('dead')
+    const s = step(level, createState(level), 'W').state // the stone starts falling
+    expect(step(level, s, 'L').state.pig).toBe(s.pig)
   })
 
   it('a stack falls together, one tile per turn', () => {

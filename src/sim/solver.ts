@@ -1,4 +1,4 @@
-import { DELTA, createState, exitOpen, stateKey, step, supported } from './sim'
+import { DELTA, createState, exitOpen, settled, stateKey, step } from './sim'
 import { ALL_RULES, EMPTY, EXIT, HUMUS, PIG, STONE, TRUFFLE } from './types'
 import type { Level, Move, Rules, State } from './types'
 
@@ -17,7 +17,7 @@ const sameBoard = (a: State, b: State) => a.cells.every((c, i) => c === b.cells[
 // Nothing is falling and the pig stands on something without holding anything up: it may wander
 // without changing the forest, so only the actions at the end of a wander need exploring.
 function freeAtRest(level: Level, s: State, rules: Rules): boolean {
-  if (s.falling.some(f => f) || !supported(level, s)) return false
+  if (!settled(level, s)) return false
   const lifted = { ...s, cells: s.cells.slice() }
   lifted.cells[s.pig] = EMPTY
   return sameBoard(lifted, step(level, lifted, 'W', rules).state)
@@ -39,6 +39,7 @@ function wander(level: Level, s: State, rules: Rules): Map<number, string> {
       if (cells[n] === EMPTY) {
         to = n
         while (cells[to + w] === EMPTY) { to += w; path += 'W' }
+        if (to !== n) path += 'W' // the turn it lands on: still falling, it cannot act yet
       } else if (cells[n] !== HUMUS && cells[n] !== TRUFFLE && !(cells[n] === STONE && rules.push && cells[n + dx] === EMPTY) &&
         cells[c - w] === EMPTY && cells[n - w] === EMPTY) to = n - w // a ledge
       if (to < 0 || paths.has(to)) continue
@@ -64,8 +65,8 @@ const CHANGES = new Set(['dig', 'eat', 'push', 'win', 'fall', 'roll', 'crush'])
 // The states one decision away, with the moves that lead there.
 function* successors(level: Level, s: State, free: boolean, rules: Rules): Generator<[State, string]> {
   if (!free) {
-    // in mid-air only waiting means anything; otherwise waiting first, so a bump never stands in for it
-    for (const m of (supported(level, s) ? ['W', 'L', 'R', 'D'] : ['W']) as Move[]) yield [step(level, s, m, rules).state, m]
+    // while things fall only waiting means anything; otherwise waiting first, so a bump never stands in for it
+    for (const m of (settled(level, s) ? ['W', 'L', 'R', 'D'] : ['W']) as Move[]) yield [step(level, s, m, rules).state, m]
     return
   }
   for (const [t, path] of wander(level, s, rules)) {
@@ -173,11 +174,11 @@ function naiveRun(level: Level, order: number[]): boolean {
   for (let turn = 0; turn < 400 && s.status === 'playing'; turn++) {
     const targets = exitOpen(level, s) ? [exit] : order.map(id => s.ids.indexOf(id)).filter(i => i >= 0 && s.cells[i] === TRUFFLE)
     let move: Move = 'W'
-    if (supported(level, s)) for (const t of targets) {
+    if (settled(level, s)) for (const t of targets) {
       const m = firstMove(level, s, t)
       if (m && m !== 'W' && step(level, s, m).state.status !== 'dead') { move = m; break }
     }
-    if (move === 'W' && supported(level, s) && ++stuck > 3) return false
+    if (move === 'W' && settled(level, s) && ++stuck > 3) return false
     if (move !== 'W') stuck = 0
     s = step(level, s, move).state
   }

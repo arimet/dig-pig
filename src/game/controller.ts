@@ -1,4 +1,4 @@
-import { createState, stateKey, step, supported } from '../sim/sim'
+import { createState, settled, stateKey, step } from '../sim/sim'
 import type { GameEvent, Level, Move, State } from '../sim/types'
 
 export type Phase = 'playing' | 'dying' | 'won'
@@ -79,7 +79,7 @@ export class GameController {
     do {
       this.undone = this.history.pop()!
       this.turnEvents.pop()
-    } while (this.history.length > 1 && !supported(this.level, this.state))
+    } while (this.history.length > 1 && !settled(this.level, this.state))
     this.undos++
     this.t = 0
     this.enter('playing')
@@ -140,8 +140,8 @@ export class GameController {
       this.hooks.onWin?.()
     }
     if (this.t >= 1 && this.phase === 'playing') {
-      // in mid-air the pig falls on its own, turn after turn; keys wait until it lands
-      if (!supported(this.level, this.state)) {
+      // while anything falls, the pig included, turns go by on their own; keys wait until all is at rest
+      if (!settled(this.level, this.state)) {
         if (this.autoplay[0] === 'W') this.autoplay.shift()
         this.take('W')
       } else {
@@ -163,7 +163,8 @@ export class GameController {
     }
     this.history.push(state)
     this.turnEvents.push(events)
-    this.t = 0
+    // a turn in which nothing moves, only things coming to rest, takes no time
+    this.t = state.cells.some((c, i) => c !== prev.cells[i]) || state.status !== prev.status ? 0 : 1
     this.hooks.onTurn?.(events)
     if (state.status === 'dead') this.deathPending = true
     if (state.status === 'won') { this.enter('won'); this.winPending = true }
