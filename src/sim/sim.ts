@@ -31,18 +31,22 @@ export function parseCells(rows: readonly string[]): { width: number; height: nu
 export const rowsOf = (level: Pick<Level, 'width' | 'height'>, cells: Uint8Array): string[] =>
   Array.from({ length: level.height }, (_, y) => Array.from(cells.subarray(y * level.width, (y + 1) * level.width), c => CHAR_OF[c]).join(''))
 
+// The door is set in the back wall: its tile is open ground, the pig and the stones pass in front of it.
+export const exitCell = (level: Level) => level.cells.indexOf(EXIT)
+
 export function createState(level: Level): State {
   const cells = level.cells.slice()
+  cells[exitCell(level)] = EMPTY
   const ids = new Int32Array(cells.length)
   cells.forEach((c, i) => { if (c === STONE || c === TRUFFLE || c === PIG) ids[i] = i + 1 })
   return { turn: 0, cells, ids, falling: new Uint8Array(cells.length), pig: cells.indexOf(PIG), eaten: 0, status: 'playing' }
 }
 
 export const exitOpen = (level: Level, s: State) => s.eaten >= level.need
-// The open door holds nothing up: the pig drops straight through it, and onto a truffle, which it eats.
+// The pig drops onto a truffle below and eats it.
 export const supported = (level: Level, s: State) => {
   const below = s.cells[s.pig + level.width]
-  return below !== EMPTY && below !== TRUFFLE && !(below === EXIT && exitOpen(level, s))
+  return below !== EMPTY && below !== TRUFFLE
 }
 // The forest waits for the pig only once everything has come to rest: until then, turns go by on their own.
 export const settled = (level: Level, s: State) => supported(level, s) && !s.falling.some(f => f)
@@ -59,28 +63,24 @@ export function step(level: Level, prev: State, move: Move, rules: Rules = ALL_R
     cells[to] = cells[from]; ids[to] = ids[from]; falling[to] = falling[from]
     cells[from] = EMPTY; ids[from] = 0; falling[from] = 0
   }
+  const exit = exitCell(level)
+  const win = () => { s.status = 'won'; events.push({ type: 'win', cell: exit }) }
   const eat = (cell: number) => {
     events.push({ type: 'eat', cell, id: ids[cell] })
     s.eaten++
-    if (s.eaten === level.need) events.push({ type: 'open', cell: cells.indexOf(EXIT) })
+    if (s.eaten === level.need) events.push({ type: 'open', cell: exit })
   }
 
   // The pig acts only with something under its trotters: in mid-air it just keeps falling.
-  const open = exitOpen(level, s)
-  const enterable = (c: number) => c === EMPTY || c === HUMUS || c === TRUFFLE || (c === EXIT && open)
+  const enterable = (c: number) => c === EMPTY || c === HUMUS || c === TRUFFLE
+  // true when the pig walks in through the open door: the turn ends there
   const enter = (to: number): boolean => {
     const c = cells[to]
     if (c === HUMUS) events.push({ type: 'dig', cell: to })
     if (c === TRUFFLE) { eat(to); cells[to] = EMPTY }
-    if (c === EXIT) {
-      cells[s.pig] = EMPTY; ids[to] = ids[s.pig]; ids[s.pig] = 0
-      s.pig = to
-      s.status = 'won'
-      events.push({ type: 'win', cell: to })
-      return true
-    }
     shift(s.pig, to)
     s.pig = to
+    if (to === exit && exitOpen(level, s)) { win(); return true }
     return false
   }
   if (move !== 'W' && settled(level, s)) {
@@ -128,10 +128,6 @@ export function step(level: Level, prev: State, move: Move, rules: Rules = ALL_R
           falling[below] = 1
           done[below] = 1
           s.pig = below
-        } else if (b === EXIT && exitOpen(level, s)) {
-          events.push({ type: 'drop', cell: below })
-          enter(below)
-          done[below] = 1
         } else falling[i] = 0
         continue
       }
@@ -181,6 +177,8 @@ export function step(level: Level, prev: State, move: Move, rules: Rules = ALL_R
       }
     }
   }
+  // dropped into the doorway, or the door opened over the pig's head with a last truffle
+  if (s.status === 'playing' && s.pig === exit && exitOpen(level, s)) win()
   return { state: s, events }
 }
 

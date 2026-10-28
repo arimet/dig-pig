@@ -10,7 +10,7 @@ const after = (grid: string[], moves: string) => {
 
 describe('step', () => {
   it('digs humus and eats truffles, then opens the exit', () => {
-    const { rows, s } = after(['#####', '#P.*#', '#X..#', '#####'], 'RR')
+    const { rows, s } = after(['#####', '#P.*#', '#...#', '#X..#', '#####'], 'RR')
     expect(rows[1]).toBe('#  P#')
     expect(s.eaten).toBe(1)
   })
@@ -50,8 +50,8 @@ describe('step', () => {
   })
 
   it('pushes a resting stone sideways into empty space only', () => {
-    expect(after(['######', '#Po  #', '#..X.#', '######'], 'R').rows[1]).toBe('# Po #')
-    expect(after(['######', '#Po. #', '#..X.#', '######'], 'R').rows[1]).toBe('#Po. #')
+    expect(after(['######', '#Po  #', '#....#', '#X...#', '######'], 'R').rows[1]).toBe('# Po #')
+    expect(after(['######', '#Po. #', '#....#', '#X...#', '######'], 'R').rows[1]).toBe('#Po. #')
   })
 
   it('the pig drops when nothing holds it up, one tile per turn, and cannot act in mid-air', () => {
@@ -76,9 +76,15 @@ describe('step', () => {
     expect(s.pig).toBe(11)
   })
 
-  it('drops into the open door from above, stands on a shut one', () => {
-    expect(play(lv(['#####', '#P  #', '#X  #', '#####']), 'W').status).toBe('won')
-    expect(play(lv(['#####', '#P *#', '#X..#', '#####']), 'W').status).toBe('playing')
+  it('the door is in the back wall: the pig and the stones pass in front of it until it opens', () => {
+    expect(play(lv(['#####', '#P  #', '#X  #', '#####']), 'W').status).toBe('won') // drops in through the open door
+    const shut = play(lv(['#####', '#P *#', '#X..#', '#####']), 'W')
+    expect([shut.status, shut.pig]).toEqual(['playing', 11]) // lands in the doorway, in front of the shut door
+    expect(play(lv(['#######', '#*.X.P#', '#######']), 'LLL').pig).toBe(9) // walks past it
+    // a stone that comes to rest in the doorway blocks the way out until it is pushed off
+    expect(play(lv(['######', '#o  .#', '#X *P#', '######']), 'LLL').pig).toBe(14)
+    expect(play(lv(['#######', '#    .#', '# Xo*P#', '#######']), 'LL').status).toBe('playing')
+    expect(play(lv(['#######', '#    .#', '# Xo*P#', '#######']), 'LLL').status).toBe('won')
   })
 
   it('a truffle falling on the pig is eaten', () => {

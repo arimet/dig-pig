@@ -1,5 +1,5 @@
-import { DELTA, createState, exitOpen, settled, stateKey, step } from './sim'
-import { ALL_RULES, EMPTY, EXIT, HUMUS, PIG, STONE, TRUFFLE } from './types'
+import { DELTA, createState, exitCell, exitOpen, settled, stateKey, step } from './sim'
+import { ALL_RULES, EMPTY, HUMUS, PIG, STONE, TRUFFLE } from './types'
 import type { Level, Move, Rules, State } from './types'
 
 export interface Analysis {
@@ -144,8 +144,7 @@ export function analyse(level: Level, opts: { budget?: number; rules?: Rules } =
 // hopping onto ledges, as if it never fell; null when there is none.
 function firstMove(level: Level, s: State, target: number): Move | null {
   const w = level.width
-  const open = exitOpen(level, s)
-  const passable = (c: number, j: number) => c === EMPTY || c === HUMUS || c === TRUFFLE || (c === EXIT && open) || j === s.pig
+  const passable = (c: number, j: number) => c === EMPTY || c === HUMUS || c === TRUFFLE || j === s.pig
   const first = new Map<number, Move>([[s.pig, 'W']])
   const queue = [s.pig]
   for (let q = 0; q < queue.length; q++) {
@@ -169,7 +168,7 @@ function firstMove(level: Level, s: State, target: number): Move | null {
 // then to the exit, never pushes or waits on purpose, only refuses a step that kills on the spot.
 function naiveRun(level: Level, order: number[]): boolean {
   let s = createState(level)
-  const exit = s.cells.indexOf(EXIT)
+  const exit = exitCell(level)
   let stuck = 0
   for (let turn = 0; turn < 400 && s.status === 'playing'; turn++) {
     const targets = exitOpen(level, s) ? [exit] : order.map(id => s.ids.indexOf(id)).filter(i => i >= 0 && s.cells[i] === TRUFFLE)

@@ -5,17 +5,16 @@
     "en": "Scree"
   },
   "idea": {
-    "fr": "Trois truffes sous trois pierres. Fais tomber les pierres là où elles ne gênent plus.",
-    "en": "Three truffles under three stones. Drop the stones where they no longer get in the way."
+    "fr": "Une truffe, deux pierres. Fais tomber les pierres là où elles ne gênent plus.",
+    "en": "One truffle, two stones. Drop the stones where they no longer get in the way."
   },
   "grid": [
     "##########",
-    "#  #o .#o#",
-    "# .P**# .#",
-    "# X.#.##.#",
-    "# #  #o###",
-    "##. . * .#",
+    "#   o .. #",
+    "#.  .P o.#",
+    "#  #.##.*#",
+    "##   X#..#",
     "##########"
   ],
-  "solution": "LRRRWLLDWWWRRRRWLLLLL"
+  "solution": "LLWRRRRRDWWLRWLLLLDWWR"
 }

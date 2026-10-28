@@ -6,7 +6,7 @@ const run = (g: GameController, seconds: number) => { for (let t = 0; t < second
 
 describe('GameController', () => {
   it('turns each move into one animated turn, and undo takes it back', () => {
-    const g = new GameController(lv(['######', '#P..*#', '#X...#', '######']))
+    const g = new GameController(lv(['######', '#P..*#', '#....#', '#X...#', '######']))
     g.request('R'); g.request('R')
     run(g, TURN_SECONDS * 3)
     expect(g.turns).toBe(2)
