@@ -9,7 +9,7 @@ import { forestDecor } from './forest'
 import {
   MATERIALS, bedrockGeometry, cavityGeometry, createPig, exitGeometries, humusGeometry, sparkleGeometry, stoneGeometry, truffleGeometry,
 } from './models'
-import { type PigAction, crushDrop, pigPath, posePig, smooth, soilLeft, truffleLeft } from './pigAnim'
+import { type PigAction, crushDrop, exitPath, pigPath, posePig, smooth, soilLeft, truffleLeft } from './pigAnim'
 import { PALETTE } from './palette'
 import { detectQuality } from './quality'
 import { createStage } from './stage'
@@ -25,7 +25,14 @@ const shared = {
   sparkle: sparkleGeometry(),
   exit: exitGeometries(),
 }
-const KEEP = new Set<object>([
+// The pig is cut off where it passes the light at the back of the doorway, so it walks out of sight.
+const pigMaterial = Object.assign(MATERIALS.lit.clone(), { clipShadows: true })
+shared.exit.glow.computeBoundingBox()
+const doorway = new THREE.Plane(new THREE.Vector3(0, 0, 1), -shared.exit.glow.boundingBox!.min.z)
+pigMaterial.clippingPlanes = [doorway]
+const HINGE = new THREE.Vector3(-5 / 16, 0, -3 / 8) // the door's left edge, from the middle of its tile
+
+const KEEP = new Set<object>([pigMaterial, 
   ...shared.humus, ...shared.bedrock, ...shared.cavity, ...shared.stone, shared.truffle, shared.sparkle,
   ...Object.values(shared.exit), ...Object.values(MATERIALS),
 ])
@@ -59,12 +66,14 @@ export class BoardScene {
   private root = new THREE.Group()
   private humus = new Map<number, THREE.Mesh>()
   private pieces = new Map<number, THREE.Object3D>()
-  private pig = createPig(MATERIALS.lit)
+  private pig = createPig(pigMaterial)
   private pigHeight = new THREE.Box3().setFromObject(this.pig).max.y // from its trotters to the top of its back
   private facing = 1 // +1 right, -1 left
   private yaw = 0
   private door: THREE.Mesh | null = null
   private glow: THREE.Mesh | null = null
+  private hinge = new THREE.Group()
+  private exitLight = new THREE.PointLight(PALETTE.dawn, 0, 3)
   private decor: THREE.Group | null = null
   private lastTo: State | null = null
   private lastClock = 0
@@ -79,6 +88,8 @@ export class BoardScene {
     const stage = createStage(canvas)
     this.renderer = stage.renderer
     this.scene = stage.scene
+    this.renderer.localClippingEnabled = true
+    this.scene.add(this.exitLight)
     if (this.quality === 'low') {
       this.renderer.shadowMap.enabled = false
       this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5))
@@ -116,6 +127,12 @@ export class BoardScene {
       if (c === EXIT) {
         add(shared.exit.frame, at)
         this.door = add(shared.exit.door, at)
+        this.hinge = new THREE.Group()
+        this.hinge.position.copy(at).add(HINGE)
+        this.door.position.copy(HINGE).negate()
+        this.hinge.add(this.door)
+        this.root.add(this.hinge)
+        this.exitLight.position.set(at.x, at.y, -0.45) // behind the pig: it shows against the light
         this.glow = add(shared.exit.glow, at, MATERIALS.glow)
       }
     })
@@ -212,9 +229,16 @@ export class BoardScene {
       }
     }
 
+    // through the open door: the pig turns its back to us, hops for joy and trots into the light,
+    // then the door swings shut behind it
     const open = exitOpen(level, f.to)
-    if (this.door) this.door.visible = !open
-    if (this.glow) this.glow.visible = open
+    const exiting = f.to.status === 'won' && a >= 1
+    const out = exitPath(f.winT)
+    if (this.door) this.door.visible = !open || (exiting && f.winT > 0)
+    if (this.glow) this.glow.visible = open && out.shut < 1
+    const u = out.shut // slammed: faster and faster, then a little rebound off the frame
+    this.hinge.rotation.y = exiting ? -(Math.PI / 2) * (1 - (u < 0.6 ? (u / 0.6) ** 2 : 1 - 0.12 * Math.sin((Math.PI * (u - 0.6)) / 0.4))) : 0
+    this.exitLight.intensity = exiting ? 2.5 * smooth(0.45, 0.7, f.winT) * (1 - smooth(0, 0.6, u)) : 0
 
     // the pig turns round on the spot (through facing the camera), then acts
     const dt = Math.max(0, clock - this.lastClock)
@@ -223,11 +247,15 @@ export class BoardScene {
     if (dx) this.facing = Math.sign(dx)
     const targetYaw = this.facing > 0 ? 0 : Math.PI
     this.yaw += (targetYaw - this.yaw) * Math.min(1, dt * 22)
-    this.pig.rotation.y = this.yaw
+    this.pig.rotation.y = exiting ? this.yaw + (Math.PI / 2 - this.yaw) * out.turn : this.yaw
     const path = pigPath(action, a), q0 = pos(p0), q1 = pos(p1)
     this.pig.position.set(q0.x + (q1.x - q0.x) * path.x, q0.y + (q1.y - q0.y) * path.y, 0)
     this.pig.position.y -= 0.5
     this.pig.position.z = 0.05
+    if (exiting) {
+      this.pig.position.y += out.lift
+      this.pig.position.z -= 1.3 * out.depth
+    }
     // crushed: the stone that killed it keeps falling onto its back and flattens it; a rewind lifts it off
     const dead = f.to.status === 'dead' ? f.to : f.from.status === 'dead' ? f.from : null
     let flat = 0
@@ -270,15 +298,15 @@ export class BoardScene {
       p.position.y = bottom + 0.5
     }
     if (holds && load) this.pieces.get(holds)!.children[0].rotation.z += 0.04 * load * Math.sin(clock * 38)
-    posePig(this.pig, flat ? 'crushed' : action, flat || a, clock)
+    if (exiting) posePig(this.pig, 'exit', f.winT, clock)
+    else posePig(this.pig, flat ? 'crushed' : action, flat || a, clock)
     if (f.to !== this.lastTo) {
       this.lastTo = f.to
       if ((action === 'dig' || action === 'digDown') && f.alpha < 1) this.burst(pos(p0), pos(p1), clock)
     }
     this.renderCrumbs(clock)
     this.pig.scale.set(1 + 0.25 * flat, 1 - (1 - FLAT) * flat - (1 - SAG) * load, 1 + 0.25 * flat)
-    // through the open door, the pig walks out of sight
-    this.pig.visible = !(f.to.status === 'won' && a >= 1)
+    this.pig.visible = !(exiting && out.depth >= 1)
 
     this.decor?.userData.update?.(clock)
     if (this.diorama) this.diorama.render()

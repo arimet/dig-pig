@@ -10,6 +10,7 @@ export interface Frame {
   events: GameEvent[] // what happened during that turn
   phase: Phase
   dyingT: number // 0..1 through the crush, before the fatal turn is taken back
+  winT: number // 0..1 through the pig's way out through the door, before the victory screen
 }
 
 export interface ControllerHooks {
@@ -22,6 +23,7 @@ export const TURN_SECONDS = 0.2
 export const WORK_SECONDS = 0.32 // digging, pushing and eating take the pig a little longer than a step
 export const DEATH_SECONDS = 1.1
 export const UNDO_SECONDS = 0.1
+export const WIN_SECONDS = 1.6
 
 // Turn-based play: each move becomes one simulation turn, animated over TURN_SECONDS.
 // Every state is kept, so undo, restart and the solution replay are just walks along the history.
@@ -32,6 +34,7 @@ export class GameController {
   private t = 1 // progress through the last turn
   private undone: State | null = null // the state being taken back, while the undo plays
   private winPending = false
+  private winAt = 0 // when the pig reached the door, on the phase clock
   private deathPending = false // the fatal turn plays out (the stone falls its last tile) before the crush
   private phase: Phase = 'playing'
   private clock = 0
@@ -128,7 +131,8 @@ export class GameController {
       if (this.clock >= DEATH_SECONDS) this.undo()
       return this.frame(this.history.at(-2) ?? this.state, this.state, 1)
     }
-    if (this.t >= 1 && this.winPending) {
+    if (this.winPending && this.t < 1) this.winAt = this.clock + (1 - this.t) * TURN_SECONDS
+    if (this.winPending && this.clock >= this.winAt + WIN_SECONDS) {
       this.winPending = false
       this.hooks.onWin?.()
     }
@@ -168,6 +172,7 @@ export class GameController {
       events: this.turnEvents[this.turnEvents.length - 1] ?? [],
       phase: this.phase,
       dyingT: this.phase === 'dying' ? Math.min(1, this.clock / DEATH_SECONDS) : 0,
+      winT: this.phase === 'won' ? Math.min(1, Math.max(0, (this.clock - this.winAt) / WIN_SECONDS)) : 0,
     }
   }
 

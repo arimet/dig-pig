@@ -1,6 +1,6 @@
 import type * as THREE from 'three'
 
-export type PigAction = 'idle' | 'walk' | 'dig' | 'digDown' | 'eat' | 'push' | 'hop' | 'fall' | 'land' | 'crushed'
+export type PigAction = 'idle' | 'walk' | 'dig' | 'digDown' | 'eat' | 'push' | 'hop' | 'fall' | 'land' | 'crushed' | 'exit'
 
 type Parts = Record<'rig' | 'head' | 'tail' | 'legFL' | 'legFR' | 'legBL' | 'legBR', THREE.Object3D>
 
@@ -37,6 +37,15 @@ export function crushDrop(t: number, speed: number, gap: number, give: number): 
   if (t < gap / speed) return speed * t
   const u = Math.min(1, (t - gap / speed) / ((2 * give) / speed)) // eases out from the same speed
   return gap + give * (1 - (1 - u) ** 2)
+}
+
+// The way out, `w` 0..1 through it: the pig turns its back to us to face the open door, hops for
+// joy, then trots in through the light; the door swings shut behind it.
+export const EXIT = { turn: [0, 0.15], hop: [0.2, 0.42], trot: [0.45, 0.85], shut: [0.86, 1] } as const
+const along = ([e0, e1]: readonly [number, number], x: number) => Math.min(1, Math.max(0, (x - e0) / (e1 - e0)))
+export function exitPath(w: number): { turn: number; lift: number; depth: number; shut: number } {
+  const u = along(EXIT.hop, w)
+  return { turn: smooth(...EXIT.turn, w), lift: 0.3 * 4 * u * (1 - u), depth: along(EXIT.trot, w), shut: along(EXIT.shut, w) }
 }
 
 // Trot: diagonal legs together (front-left with back-right). Positive rotation.z swings a foot forward.
@@ -132,6 +141,23 @@ export function posePig(pig: THREE.Object3D, action: PigAction, a: number, clock
       p.tail.rotation.z = 0.5 * air
       p.rig.scale.y = 1 - 0.2 * squash
       p.rig.scale.x = p.rig.scale.z = 1 + 0.07 * squash
+      break
+    }
+    case 'exit': {
+      const [h0, h1] = EXIT.hop
+      const crouch = hump(h0 - 0.05, h0 + 0.02, a), air = hump(h0, h1, a), squash = hump(h1 - 0.02, h1 + 0.06, a)
+      if (a < EXIT.turn[1]) trot(p, (a / EXIT.turn[1]) * 2 * Math.PI, 0.3) // shuffling round on the spot
+      if (a > EXIT.trot[0]) trot(p, along(EXIT.trot, a) * 5 * Math.PI, 0.5)
+      // in the air the legs tuck up, front forward and back behind, the head lifts towards the light
+      p.legFL.rotation.z += 0.7 * air
+      p.legFR.rotation.z += 0.7 * air
+      p.legBL.rotation.z -= 0.7 * air
+      p.legBR.rotation.z -= 0.7 * air
+      p.head.rotation.z = 0.25 * air + 0.12 * smooth(EXIT.trot[0], EXIT.trot[0] + 0.1, a)
+      p.rig.scale.y = 1 - 0.12 * crouch - 0.15 * squash
+      p.rig.scale.x = p.rig.scale.z = 1 + 0.05 * (crouch + squash)
+      p.tail.rotation.y = 0.6 * Math.sin(clock * 22) // wagging hard
+      p.tail.rotation.z = 0.4
       break
     }
     case 'crushed':

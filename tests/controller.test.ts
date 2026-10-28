@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEATH_SECONDS, GameController, TURN_SECONDS } from '../src/game/controller'
+import { DEATH_SECONDS, GameController, TURN_SECONDS, WIN_SECONDS } from '../src/game/controller'
 import { lv } from './helpers'
 
 const run = (g: GameController, seconds: number) => { for (let t = 0; t < seconds; t += 1 / 60) g.update(1 / 60) }
@@ -41,6 +41,8 @@ describe('GameController', () => {
     const g = new GameController(level, { onWin: () => { won = true } })
     expect(g.showSolution()).toBe(true)
     run(g, TURN_SECONDS * 5)
+    expect(won).toBe(false) // the pig is still on its way out through the door
+    run(g, WIN_SECONDS)
     expect(won).toBe(true)
     expect(g.usedSolution).toBe(true)
   })
