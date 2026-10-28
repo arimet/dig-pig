@@ -68,6 +68,11 @@ describe('step', () => {
     expect(after(['######', '##   #', '#P# X#', '######'], 'R').s.pig).toBe(13) // no headroom above the pig
   })
 
+  it('drops into the open door from above, stands on a shut one', () => {
+    expect(play(lv(['#####', '#P  #', '#X  #', '#####']), 'W').status).toBe('won')
+    expect(play(lv(['#####', '#P *#', '#X..#', '#####']), 'W').status).toBe('playing')
+  })
+
   it('a truffle falling on the pig is eaten', () => {
     const level = lv(['#####', '#*  #', '#   #', '#   #', '#P X#', '#####'])
     let s = step(level, createState(level), 'W').state // the truffle starts to fall

@@ -39,7 +39,11 @@ export function createState(level: Level): State {
 }
 
 export const exitOpen = (level: Level, s: State) => s.eaten >= level.need
-export const supported = (level: Level, s: State) => s.cells[s.pig + level.width] !== EMPTY
+// The open door holds nothing up: the pig drops straight through it.
+export const supported = (level: Level, s: State) => {
+  const below = s.cells[s.pig + level.width]
+  return below !== EMPTY && !(below === EXIT && exitOpen(level, s))
+}
 
 // One turn: the pig acts, then the pig, every stone and every truffle settle by one tile, scanning
 // from the bottom row up so a stack falls together, left to right within a row.
@@ -113,6 +117,10 @@ export function step(level: Level, prev: State, move: Move, rules: Rules = ALL_R
           done[below] = 1
           s.pig = below
           events.push({ type: 'drop', cell: below })
+        } else if (b === EXIT && exitOpen(level, s)) {
+          events.push({ type: 'drop', cell: below })
+          enter(below)
+          done[below] = 1
         } else falling[i] = 0
         continue
       }
