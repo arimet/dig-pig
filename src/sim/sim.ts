@@ -134,12 +134,12 @@ export function step(level: Level, prev: State, move: Move, rules: Rules = ALL_R
         falling[below] = 1
         done[below] = 1
         if (cells[below + w] === PIG) {
-          // one that only just started to fall settles on the pig's back; one already falling hits it
-          if (was) hit(below)
+          // a stone that only just started to fall settles on the pig's back; one already falling hits it
+          if (was || c === TRUFFLE) hit(below)
           else { falling[below] = 0; events.push({ type: 'land', cell: below, id: ids[below] }) }
         }
-      } else if (b === PIG && falling[i]) {
-        hit(i) // the pig stepped in under a falling stone
+      } else if (b === PIG && (falling[i] || c === TRUFFLE)) {
+        hit(i) // the pig stepped in under a falling stone, or under a truffle
       } else {
         const side = rules.roll && (b === STONE || b === TRUFFLE)
           ? [-1, 1].find(d => cells[i + d] === EMPTY && cells[below + d] === EMPTY)

@@ -74,6 +74,9 @@ describe('step', () => {
     s = step(level, s, 'W').state // and reaches the pig, already falling
     expect(s.eaten).toBe(1)
     expect(s.status).toBe('playing')
+    // one that only starts to fall, as the pig digs out from under it, never rests on its back
+    expect(play(lv(['#####', '# * #', '# P #', '# . #', '# #X#', '#####']), 'D').eaten).toBe(1)
+    expect(play(lv(['#####', '# * #', '#P. #', '#####', '# X #', '#####']), 'R').eaten).toBe(1)
   })
 
   it('a stone that only starts to fall above the pig settles on its back, a falling one crushes it at once', () => {
