@@ -9,7 +9,7 @@ import { forestDecor } from './forest'
 import {
   MATERIALS, bedrockGeometry, cavityGeometry, createPig, exitGeometries, humusGeometry, sparkleGeometry, stoneGeometry, truffleGeometry,
 } from './models'
-import { type PigAction, crushDrop, pigPath, posePig, soilLeft, truffleLeft } from './pigAnim'
+import { type PigAction, crushDrop, pigPath, posePig, smooth, soilLeft, truffleLeft } from './pigAnim'
 import { PALETTE } from './palette'
 import { detectQuality } from './quality'
 import { createStage } from './stage'
@@ -34,6 +34,7 @@ const STONE_RADIUS = 0.44 // the stone model is 21 voxels tall at 24 per tile
 const CRUMBS = 12
 const CRUMB_LIFE = 0.7
 const FLAT = 0.4 // a crushed pig keeps this much of its height
+const SAG = 0.9 // and a pig carrying a stone, this much
 
 // What the pig is doing during a turn, from what the turn did.
 function actionOf(events: GameEvent[], from: State, to: State, width: number): PigAction {
@@ -237,13 +238,45 @@ export class BoardScene {
       if (stone) stone.position.y -= drop
       flat = Math.max(0, drop - gap) / give
     }
+    // a stone or a truffle resting right above the pig sits on its back: the pig sags under it and it
+    // trembles there, since it falls as soon as the pig moves away
+    const loadOf = (s: State) => {
+      const c = s.pig - level.width
+      return (s.cells[c] === STONE || s.cells[c] === TRUFFLE) && !s.falling[c] ? s.ids[c] : 0
+    }
+    const held = loadOf(f.from), holds = loadOf(f.to)
+    const feet = this.pig.position.y
+    const top = (load: number) => feet + this.pigHeight * (1 - (1 - SAG) * load)
+    let load = 0
+    if (holds && holds === held) {
+      load = 1
+      this.pieces.get(holds)!.position.y = top(1) + 0.5
+    } else if (holds) {
+      // walking in under it: it settles onto the back as the pig gets there
+      load = smooth(0.6, 1, path.x)
+      const p = this.pieces.get(holds)!
+      p.position.y += (top(1) + 0.5 - p.position.y) * load
+    } else if (held && to.has(held)) {
+      // walking out from under it: it stays on the back until the back has slid away, then drops
+      const p = this.pieces.get(held)!, x = p.position.x
+      const under = (t: number) => Math.abs(q0.x + (q1.x - q0.x) * pigPath(action, t).x - x) < 0.6
+      let a0 = 0 // when the back stops holding it up; at once if the pig drops or digs down away from it
+      while (q1.y === q0.y && a0 < 1 && under(a0)) a0 += 0.05
+      load = 1 - smooth(a0, a0 + 0.1, a)
+      const back = feet - (q1.y - q0.y) * path.y + this.pigHeight * SAG // the back at the start of the turn
+      const end = pos(to.get(held)!).y - 0.5
+      let bottom = back + (end - back) * (a < a0 ? 0 : ((a - a0) / (1 - a0)) ** 2)
+      if (under(a)) bottom = Math.max(bottom, top(load))
+      p.position.y = bottom + 0.5
+    }
+    if (holds && load) this.pieces.get(holds)!.children[0].rotation.z += 0.04 * load * Math.sin(clock * 38)
     posePig(this.pig, flat ? 'crushed' : action, flat || a, clock)
     if (f.to !== this.lastTo) {
       this.lastTo = f.to
       if ((action === 'dig' || action === 'digDown') && f.alpha < 1) this.burst(pos(p0), pos(p1), clock)
     }
     this.renderCrumbs(clock)
-    this.pig.scale.set(1 + 0.25 * flat, 1 - (1 - FLAT) * flat, 1 + 0.25 * flat)
+    this.pig.scale.set(1 + 0.25 * flat, 1 - (1 - FLAT) * flat - (1 - SAG) * load, 1 + 0.25 * flat)
     // through the open door, the pig walks out of sight
     this.pig.visible = !(f.to.status === 'won' && a >= 1)
 
