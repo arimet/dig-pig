@@ -10,13 +10,13 @@
   },
   "grid": [
     "##########",
-    "#....  P##",
-    "#.#*#.#. #",
-    "# *## .  #",
-    "##..oo.o.#",
-    "#   ...o.#",
-    "#   #.##X#",
+    "#P... .#.#",
+    "###.  . *#",
+    "#    # ..#",
+    "#   .o. ##",
+    "#X   . #o#",
+    "# . ##. *#",
     "##########"
   ],
-  "solution": "LLLLLLRRDLLDWRDWWWRRRWLWRRDLWWRRRDD"
+  "solution": "RRRWWWRRWRWLWLRWLLWRRRRLWLWDRRLWLLLLLL"
 }

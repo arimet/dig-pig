@@ -214,12 +214,19 @@ export class BoardScene {
     const a = f.alpha
 
     for (const [id, p] of this.pieces) if (!to.has(id) && !from.has(id)) p.visible = false
+    const rolled = new Set(f.events.filter(e => e.type === 'roll').map(e => e.id))
     for (const [id, cell] of to) {
       const p = this.piece(id, f.to.cells[cell])
       p.visible = true
       p.scale.setScalar(1)
       const start = from.get(id) ?? cell
       p.position.lerpVectors(pos(start), pos(cell), a)
+      if (rolled.has(id)) {
+        // off the edge: it tips over sideways and drops, faster and faster
+        const s0 = pos(start), s1 = pos(cell)
+        p.position.x = s0.x + (s1.x - s0.x) * smooth(0, 0.7, a)
+        p.position.y = s0.y + (s1.y - s0.y) * a * a // round on round: it sinks a little from the start
+      }
       // a stone rolls without slipping: its turn follows from how far along the row it is
       if (p.userData.kind === STONE) p.children[0].rotation.z = p.userData.spin - p.position.x / STONE_RADIUS
       const sp = p.userData.sparkle as THREE.Mesh | undefined
@@ -234,9 +241,17 @@ export class BoardScene {
     for (const [id, cell] of from) {
       if (to.has(id) || id === caught) continue
       const p = this.piece(id, TRUFFLE)
+      p.position.copy(pos(cell))
+      if (cell === f.to.pig && cell > f.from.pig + 1) {
+        // dropped onto: it goes as the falling pig's trotters reach it
+        const left = 1 - smooth(0.55, 0.8, a)
+        p.visible = left > 0
+        p.scale.set(left, left * left, left) // flattened against the floor
+        p.position.y -= 0.5 * (1 - left * left)
+        continue
+      }
       const left = truffleLeft(a)
       p.visible = left > 0
-      p.position.copy(pos(cell))
       p.position.x -= (1 - left) * 0.25 * this.facing
       p.scale.setScalar(left)
     }

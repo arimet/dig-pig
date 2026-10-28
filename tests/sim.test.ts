@@ -40,10 +40,11 @@ describe('step', () => {
   })
 
   it('stones roll off stones and truffles, left first, never off humus', () => {
-    expect(after(['#####', '# o #', '# o #', '#P#X#', '#####'], 'W').rows[1]).toBe('#o  #')
-    expect(after(['#####', '# o #', '# o #', '#P#X#', '#####'], 'WW').rows[2]).toBe('#oo #')
-    expect(after(['#####', '#.o #', '#.* #', '#P#X#', '#####'], 'WW').rows[1]).toBe('#.  #')
-    expect(after(['#####', '#.o #', '#.* #', '#P#X#', '#####'], 'WW').rows[2]).toBe('#.*o#')
+    // over the edge and down in the same turn
+    const off = after(['#####', '# o #', '# o #', '#P#X#', '#####'], 'W')
+    expect(off.rows.slice(1, 3)).toEqual(['#   #', '#oo #'])
+    expect(off.s.status).toBe('playing') // it only just started to fall: it settles on the pig's back
+    expect(after(['#####', '#.o #', '#.* #', '#P#X#', '#####'], 'W').rows.slice(1, 3)).toEqual(['#.  #', '#.*o#'])
     expect(after(['#####', '#.o.#', '#.o.#', '#P#X#', '#####'], 'W').rows[1]).toBe('#.o.#')
   })
 
@@ -66,6 +67,12 @@ describe('step', () => {
   it('hops onto a one-tile ledge when there is room above, never climbs straight up', () => {
     expect(after(['######', '#    #', '#P# X#', '######'], 'R').s.pig).toBe(8)
     expect(after(['######', '##   #', '#P# X#', '######'], 'R').s.pig).toBe(13) // no headroom above the pig
+  })
+
+  it('drops onto a truffle below and eats it', () => {
+    const s = play(lv(['#####', '#P  #', '#*  #', '#. X#', '#####']), 'W')
+    expect(s.eaten).toBe(1)
+    expect(s.pig).toBe(11)
   })
 
   it('drops into the open door from above, stands on a shut one', () => {

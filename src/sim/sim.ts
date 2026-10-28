@@ -39,10 +39,10 @@ export function createState(level: Level): State {
 }
 
 export const exitOpen = (level: Level, s: State) => s.eaten >= level.need
-// The open door holds nothing up: the pig drops straight through it.
+// The open door holds nothing up: the pig drops straight through it, and onto a truffle, which it eats.
 export const supported = (level: Level, s: State) => {
   const below = s.cells[s.pig + level.width]
-  return below !== EMPTY && !(below === EXIT && exitOpen(level, s))
+  return below !== EMPTY && below !== TRUFFLE && !(below === EXIT && exitOpen(level, s))
 }
 
 // One turn: the pig acts, then the pig, every stone and every truffle settle by one tile, scanning
@@ -117,6 +117,15 @@ export function step(level: Level, prev: State, move: Move, rules: Rules = ALL_R
           done[below] = 1
           s.pig = below
           events.push({ type: 'drop', cell: below })
+        } else if (b === TRUFFLE) {
+          events.push({ type: 'drop', cell: below })
+          eat(below)
+          cells[below] = EMPTY
+          ids[below] = 0
+          shift(i, below)
+          falling[below] = 1
+          done[below] = 1
+          s.pig = below
         } else if (b === EXIT && exitOpen(level, s)) {
           events.push({ type: 'drop', cell: below })
           enter(below)
@@ -153,10 +162,16 @@ export function step(level: Level, prev: State, move: Move, rules: Rules = ALL_R
           ? [-1, 1].find(d => cells[i + d] === EMPTY && cells[below + d] === EMPTY)
           : undefined
         if (side !== undefined) {
+          // over the edge and down in one go, then it falls on
+          const to = below + side, was = falling[i]
           events.push({ type: 'roll', cell: i, id: ids[i] })
-          shift(i, i + side)
-          falling[i + side] = 1
-          done[i + side] = 1
+          shift(i, to)
+          falling[to] = 1
+          done[to] = 1
+          if (cells[to + w] === PIG) {
+            if (was || c === TRUFFLE) hit(to)
+            else { falling[to] = 0; events.push({ type: 'land', cell: to, id: ids[to] }) }
+          }
         } else {
           if (falling[i]) events.push({ type: 'land', cell: i, id: ids[i] })
           falling[i] = 0
