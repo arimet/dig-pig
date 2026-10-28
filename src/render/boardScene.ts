@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { DEATH_SECONDS, TURN_SECONDS, type Frame } from '../game/controller'
+import { CATCH_SECONDS, DEATH_SECONDS, TURN_SECONDS, type Frame } from '../game/controller'
 import { exitOpen } from '../sim/sim'
 import { BEDROCK, EMPTY, EXIT, HUMUS, STONE, TRUFFLE } from '../sim/types'
 import type { GameEvent, Level, State } from '../sim/types'
@@ -42,6 +42,9 @@ const CRUMBS = 12
 const CRUMB_LIFE = 0.7
 const FLAT = 0.4 // a crushed pig keeps this much of its height
 const SAG = 0.9 // and a pig carrying a stone, this much
+const BACK = 0.56 // the top of the pig's back, above its trotters
+const SNOUT = new THREE.Vector3(0.375, -0.04, 0) // the tip of the snout, from the neck
+const TRUFFLE_MID = 0.29 // a truffle's centre, above the floor it sits on
 
 // What the pig is doing during a turn, from what the turn did.
 function actionOf(events: GameEvent[], from: State, to: State, width: number): PigAction {
@@ -203,8 +206,9 @@ export class BoardScene {
     const p0 = f.from.pig, p1 = f.to.pig
     const action = f.phase === 'dying' ? 'idle' : actionOf(f.events, f.from, f.to, level.width)
     // eaten this turn: the truffle shrinks into the snout as it reaches it
+    const caught = f.events.find(e => e.type === 'eat' && e.cell !== f.to.pig)?.id
     for (const [id, cell] of from) {
-      if (to.has(id)) continue
+      if (to.has(id) || id === caught) continue
       const p = this.piece(id, TRUFFLE)
       const left = truffleLeft(a)
       p.visible = left > 0
@@ -300,6 +304,17 @@ export class BoardScene {
     if (holds && load) this.pieces.get(holds)!.children[0].rotation.z += 0.04 * load * Math.sin(clock * 38)
     if (exiting) posePig(this.pig, 'exit', f.winT, clock)
     else posePig(this.pig, flat ? 'crushed' : action, flat || a, clock)
+    const drop = caught && from.get(caught)
+    if (drop) {
+      const feet = (t: number) => {
+        const k = pigPath(action, t)
+        return new THREE.Vector3(q0.x + (q1.x - q0.x) * k.x, q0.y + (q1.y - q0.y) * k.y - 0.5, 0)
+      }
+      // dug out from under it, it stays on the soil until the snout has eaten through
+      const dugUnder = action === 'dig' && f.from.cells[p1] === HUMUS
+      const floor = (t: number) => pos(p1).y - 0.5 + (dugUnder && soilLeft(t) > 0.5 ? 1 : 0) // it tips off once half the soil is gone
+      this.renderCatch(this.piece(caught, TRUFFLE), pos(drop), !!f.from.falling[drop], feet, floor, a)
+    }
     if (f.to !== this.lastTo) {
       this.lastTo = f.to
       if ((action === 'dig' || action === 'digDown') && f.alpha < 1) this.burst(pos(p0), pos(p1), clock)
@@ -311,6 +326,48 @@ export class BoardScene {
     this.decor?.userData.update?.(clock)
     if (this.diorama) this.diorama.render()
     else this.renderer.render(this.scene, this.camera)
+  }
+
+  // A truffle dropping onto the pig: it falls until the pig's back or the floor stops it. Landed on
+  // the back, a toss of the head throws it up to the snout and the pig gulps it; landed on the floor,
+  // the pig eats it as its snout gets there. `feet(t)` is where the pig stands at turn progress t.
+  private renderCatch(p: THREE.Object3D, start: THREE.Vector3, falling: boolean, feet: (t: number) => THREE.Vector3, floor: (t: number) => number, a: number) {
+    const v0 = (falling ? 1 / TURN_SECONDS : 0) * CATCH_SECONDS, g = 7 // in tiles per turn, and per turn squared
+    const first = (from: number, ok: (t: number) => boolean) => {
+      let t = from
+      while (t < 1 && !ok(t)) t += 0.01
+      return t
+    }
+    const held = first(0, t => floor(t) < start.y - 0.5 - 1e-3) // when the soil it rests on gives way
+    const free = (t: number) => start.y - 0.5 - v0 * t - g * Math.max(0, t - held) ** 2 // the bottom of the truffle
+    const under = (t: number) => Math.abs(feet(t).x - start.x) < 0.45
+    const support = (t: number) => (under(t) ? feet(t).y + BACK : floor(t))
+    const c = first(0, t => free(t) <= support(t)) // when it lands
+    p.visible = true
+    p.position.set(start.x, Math.max(free(a), support(a)) + 0.5, 0)
+    p.scale.setScalar(1)
+    if (a < c) return
+    if (!under(c)) {
+      // on the floor in front of the pig: it shrinks into the snout as the snout reaches it
+      const reach = first(c, t => Math.abs(feet(t).x + this.facing * 0.48 - start.x) < 0.25)
+      const left = 1 - smooth(reach, reach + 0.15, a)
+      p.scale.setScalar(left)
+      p.visible = left > 0
+      return
+    }
+    // on the back: a toss of the head sends it up in an arc to the snout, then a gulp and two chews
+    const head = (this.pig.userData as { head: THREE.Object3D }).head
+    head.rotation.z += 0.6 * Math.sin(Math.PI * Math.min(1, (a - c) / 0.3)) + 0.07 * Math.sin(smooth(c + 0.3, 1, a) * 4 * Math.PI)
+    this.pig.updateMatrixWorld(true)
+    const s = this.root.worldToLocal(head.localToWorld(SNOUT.clone()))
+    const d = Math.min(0.14, (1 - c) / 2) // landing late in the turn, the pig is quicker about it
+    const toss = smooth(c, c + d, a), gulp = smooth(c + d, c + 1.9 * d, a)
+    const at = new THREE.Vector3(start.x, feet(a).y + BACK + TRUFFLE_MID, 0).lerp(s, toss)
+    at.y += 0.3 * Math.sin(Math.PI * toss)
+    const k = (1 - 0.5 * toss) * (1 - gulp)
+    p.position.set(at.x, at.y + (0.5 - TRUFFLE_MID) * k, at.z)
+    p.scale.setScalar(k)
+    p.visible = k > 0
   }
 
   private burst(from: THREE.Vector3, to: THREE.Vector3, clock: number) {

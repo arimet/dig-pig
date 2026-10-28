@@ -23,6 +23,7 @@ export const TURN_SECONDS = 0.2
 export const WORK_SECONDS = 0.32 // digging, pushing and eating take the pig a little longer than a step
 export const DEATH_SECONDS = 1.1
 export const UNDO_SECONDS = 0.1
+export const CATCH_SECONDS = 0.55 // a truffle dropping onto the pig: it lands, the pig tosses it to its snout
 export const WIN_SECONDS = 1.6
 
 // Turn-based play: each move becomes one simulation turn, animated over TURN_SECONDS.
@@ -121,8 +122,10 @@ export class GameController {
       if (this.t >= 1) this.undone = null
       return { ...f, events: [] }
     }
-    const work = this.turnEvents.at(-1)?.some(e => e.type === 'dig' || e.type === 'push' || e.type === 'eat')
-    this.t = Math.min(1, this.t + dt / (work ? WORK_SECONDS : TURN_SECONDS))
+    const last = this.turnEvents.at(-1) ?? []
+    const work = last.some(e => e.type === 'dig' || e.type === 'push' || e.type === 'eat')
+    const caught = last.some(e => e.type === 'eat' && e.cell !== this.state.pig)
+    this.t = Math.min(1, this.t + dt / (caught ? CATCH_SECONDS : work ? WORK_SECONDS : TURN_SECONDS))
     if (this.t >= 1 && this.deathPending) {
       this.deathPending = false
       this.enter('dying')
