@@ -25,7 +25,7 @@ describe('GameController', () => {
   it('a crush plays out, then the fatal turn is taken back', () => {
     // one move, then the falls play out on their own until the stone rolls onto the pig
     const g = new GameController(lv(CRUSH))
-    g.request('R')
+    g.request('L')
     run(g, WORK_SECONDS + TURN_SECONDS * 2)
     expect(g.state.status).toBe('dead')
     run(g, DEATH_SECONDS + 0.5)

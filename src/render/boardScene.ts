@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { CATCH_SECONDS, DEATH_SECONDS, TURN_SECONDS, type Frame } from '../game/controller'
 import { exitOpen } from '../sim/sim'
-import { BEDROCK, EMPTY, EXIT, HUMUS, STONE, TRUFFLE } from '../sim/types'
+import { BEDROCK, EMPTY, EXIT, HUMUS, PIG, STONE, TRUFFLE } from '../sim/types'
 import type { GameEvent, Level, State } from '../sim/types'
 import { createDiorama } from './diorama'
 import { disposeTree } from './dispose'
@@ -76,6 +76,21 @@ function actionOf(events: GameEvent[], from: State, to: State, width: number): P
 }
 
 // The level as a slice of forest soil seen from the front: gravity points down the screen.
+// How far over a stone tipping onto the pig's back has gone, 0..1: it waits for the pig to be out of
+// its way, then goes over faster and faster.
+const tipOver = (a: number) => smooth(0.45, 1, a) ** 2
+
+// Which way a resting stone or truffle on another one could roll once the pig clears the way:
+// 0 when held, -1 or 1 for one side, 2 for both. A side held by bedrock, a stone or the pig never frees.
+function teeter(s: State, i: number, w: number): number {
+  const below = s.cells[i + w]
+  if (s.falling[i] || (below !== STONE && below !== TRUFFLE)) return 0
+  const clearable = (c: number) => c === EMPTY || c === HUMUS
+  // the pig under that side frees it too: the stone would tip onto its back
+  const sides = [-1, 1].filter(d => clearable(s.cells[i + d]) && (clearable(s.cells[i + w + d]) || s.cells[i + w + d] === PIG))
+  return sides.length === 2 ? 2 : sides[0] ?? 0
+}
+
 export class BoardScene {
   readonly renderer: THREE.WebGLRenderer
   private scene: THREE.Scene
@@ -224,11 +239,23 @@ export class BoardScene {
       if (rolled.has(id)) {
         // off the edge: it tips over sideways and drops, faster and faster
         const s0 = pos(start), s1 = pos(cell)
-        p.position.x = s0.x + (s1.x - s0.x) * smooth(0, 0.7, a)
-        p.position.y = s0.y + (s1.y - s0.y) * a * a // round on round: it sinks a little from the start
+        if (s1.y === s0.y) p.position.x = s0.x + (s1.x - s0.x) * tipOver(a) // onto the pig's back, settled below
+        else {
+          p.position.x = s0.x + (s1.x - s0.x) * smooth(0, 0.7, a)
+          p.position.y = s0.y + (s1.y - s0.y) * a * a // round on round: it sinks a little from the start
+        }
       }
       // a stone rolls without slipping: its turn follows from how far along the row it is
       if (p.userData.kind === STONE) p.children[0].rotation.z = p.userData.spin - p.position.x / STONE_RADIUS
+      // round on round, with only soil or air to one side: every few seconds it rocks that way, so the
+      // player sees it would roll off there once the side is clear
+      const lean = start === cell ? teeter(f.to, cell, level.width) : 0
+      if (lean) {
+        const beat = (clock + id * 0.9) % 2.6
+        const k = Math.sin(Math.min(1, beat / 0.9) * Math.PI) * (lean === 2 ? Math.sin(beat * 7) : lean) // rocks both ways when free on both sides
+        p.children[0].rotation.z -= 0.16 * k
+        p.position.x += 0.05 * k
+      }
       const sp = p.userData.sparkle as THREE.Mesh | undefined
       if (sp) sp.scale.setScalar(1.6 * Math.max(0, Math.sin(clock * 2.2 + id * 1.7)) ** 3)
       const h = p.userData.halo as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial> | undefined
@@ -322,6 +349,12 @@ export class BoardScene {
     if (holds && holds === held) {
       load = 1
       this.pieces.get(holds)!.position.y = top(1) + 0.5
+    } else if (holds && rolled.has(holds)) {
+      // tipped over onto the back: round the stone below it, sinking faster and faster, until the back stops it
+      const p = this.pieces.get(holds)!, x = tipOver(a), y0 = pos(f.from.ids.indexOf(holds)).y
+      const arc = y0 - (1 - Math.sqrt(1 - x * x))
+      p.position.y = x > 0.5 ? Math.max(top(1) + 0.5, arc) : arc // the back only stops it once it is over it
+      load = smooth(0.85, 1, a)
     } else if (holds) {
       // walking in under it: it settles onto the back as the pig gets there
       load = smooth(0.6, 1, path.x)

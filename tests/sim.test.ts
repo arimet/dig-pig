@@ -25,8 +25,8 @@ describe('step', () => {
     expect(after(['#####', '#.o.#', '#P.X#', '#####'], 'R').s.status).toBe('playing')
     // walk out from under a stone sideways: it falls into the gap, not on the pig
     expect(after(['#####', '#o  #', '#P X#', '#####'], 'R').s.status).toBe('playing')
-    // a falling stone lands on another and rolls off onto the pig, which has just dropped below
-    expect(play(lv(CRUSH), 'RW').status).toBe('dead')
+    // a falling stone lands on another and tips over onto the pig, which has just dropped beside it
+    expect(play(lv(CRUSH), 'LW').status).toBe('dead')
   })
 
   it('while anything falls the pig cannot act: moves are only waits', () => {
@@ -47,6 +47,13 @@ describe('step', () => {
     expect(off.s.status).toBe('playing') // it only just started to fall: it settles on the pig's back
     expect(after(['#####', '#.o #', '#.* #', '#P#X#', '#####'], 'W').rows.slice(1, 3)).toEqual(['#.  #', '#.*o#'])
     expect(after(['#####', '#.o.#', '#.o.#', '#P#X#', '#####'], 'W').rows[1]).toBe('#.o.#')
+  })
+
+  it('a stone on another one tips over onto the pig when only the pig is in its way down', () => {
+    const { rows, s } = after(['######', '#.o  #', '#.o.P#', '#X#..#', '######'], 'L')
+    expect(rows[1]).toBe('#. o #') // on its back, unhurt
+    expect(s.status).toBe('playing')
+    expect(after(['######', '#.o  #', '#.o.P#', '#X#..#', '######'], 'LR').rows.slice(1, 3)).toEqual(['#.   #', '#.ooP#']) // it drops off as the pig walks away
   })
 
   it('pushes a resting stone sideways into empty space only', () => {

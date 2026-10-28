@@ -157,9 +157,17 @@ export function step(level: Level, prev: State, move: Move, rules: Rules = ALL_R
         hit(i) // the pig stepped in under a falling stone, or under a truffle
       } else {
         const side = rules.roll && (b === STONE || b === TRUFFLE)
-          ? [-1, 1].find(d => cells[i + d] === EMPTY && cells[below + d] === EMPTY)
+          ? [-1, 1].find(d => cells[i + d] === EMPTY && (cells[below + d] === EMPTY || cells[below + d] === PIG))
           : undefined
-        if (side !== undefined) {
+        if (side !== undefined && cells[below + side] === PIG) {
+          // the pig is in the way down: it tips over sideways onto its back, and crushes it if it was falling
+          const to = i + side, was = falling[i]
+          events.push({ type: 'roll', cell: i, id: ids[i] })
+          shift(i, to)
+          done[to] = 1
+          if (was || c === TRUFFLE) hit(to)
+          else events.push({ type: 'land', cell: to, id: ids[to] })
+        } else if (side !== undefined) {
           // over the edge and down in one go, then it falls on
           const to = below + side, was = falling[i]
           events.push({ type: 'roll', cell: i, id: ids[i] })
