@@ -139,6 +139,12 @@ export function createScreens(root: HTMLElement, on: ScreenHandlers) {
   const vSignWrap = hanging('big', vStars, vTitle)
   const vSign = vSignWrap.querySelector('.sign') as HTMLElement
   victory.append(vSignWrap, vText, actions(vMenu, vNext))
+  // from the keyboard too: Enter or Space on the focused button (the next level), Escape for the menu
+  addEventListener('keydown', e => {
+    if (!victory.classList.contains('on')) return
+    if (e.key === 'Escape') { e.preventDefault(); on.onMenu() }
+    else if (e.key === 'Enter' && !(e.target instanceof HTMLButtonElement)) { e.preventDefault(); (vNext.hidden ? vMenu : vNext).click() }
+  })
 
   // confirmation before revealing the solution: it costs the level's stars
   // a native modal dialog: it traps focus and closes on Escape
@@ -290,6 +296,7 @@ export function createScreens(root: HTMLElement, on: ScreenHandlers) {
       vText.textContent = r.worldDone ? `${line} ${s.worldDone(pick(r.worldDone))}` : r.hasNext ? line : `${line} ${s.worldDone(null)}`
       vNext.hidden = !r.hasNext
       only(victory)
+      ;(r.hasNext ? vNext : vMenu).focus({ preventScroll: true })
     },
   }
 }

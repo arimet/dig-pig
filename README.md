@@ -23,6 +23,7 @@ A level earns 3 stars without a single undo, restart or crush, 2 with up to thre
 | Wait a turn | Space | **Wait** button |
 | Undo | U or Backspace | **Undo** button |
 | Restart | R | **Restart** button |
+| After a win: next level, or the menu | Enter or Space, Escape | **Next level**, **Menu** buttons |
 
 There is no key to go up: pigs don't climb.
 

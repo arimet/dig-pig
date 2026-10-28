@@ -54,6 +54,7 @@ function startLevel(id: number, custom?: Level) {
     },
     onTurn: events => { playEvents(events); refreshHud() },
     onWin: () => {
+      playing = false // the level is over: its keys no longer move, undo or restart it
       const stars = starsFor(game.mistakes, game.usedSolution)
       progress = completeLevel(progress, level.id, stars)
       saveProgress(progress)
